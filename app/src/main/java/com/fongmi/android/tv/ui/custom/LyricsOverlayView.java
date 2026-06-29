@@ -214,7 +214,7 @@ public class LyricsOverlayView extends FrameLayout {
             int stop = Math.min(text.length(), start + value.length());
             if (stop <= start) continue;
             if (relativeMs >= word.getEndOffsetMs()) {
-                span.setSpan(new KaraokeSpan(PRIMARY_COLOR, 1f), start, stop, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                span.setSpan(new ForegroundColorSpan(PRIMARY_COLOR), start, stop, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
             } else if (relativeMs >= word.getStartOffsetMs()) {
                 float progress = word.getDurationMs() <= 0 ? 1f : Math.min(1f, Math.max(0f, (relativeMs - word.getStartOffsetMs()) / (float) word.getDurationMs()));
                 span.setSpan(new KaraokeSpan(PRIMARY_COLOR, progress), start, stop, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
