@@ -198,8 +198,8 @@ public class KuwoClient {
     private long duration(Row row, int index, long lineDuration) {
         Word word = row.words.get(index);
         long start = word.startMs();
-        if (index + 1 < row.words.size()) return Math.max(0, row.words.get(index + 1).startMs() - start);
-        long duration = Math.max(0, word.valueMs());
+        long duration = word.durationMs();
+        if (duration <= 0 && index + 1 < row.words.size()) duration = Math.max(0, row.words.get(index + 1).startMs() - start);
         if (lineDuration > start) duration = duration > 0 ? Math.min(duration, lineDuration - start) : lineDuration - start;
         return Math.min(Math.max(duration, 240), 3000);
     }
@@ -350,7 +350,7 @@ public class KuwoClient {
             Matcher matcher = LRCX_WORD.matcher(text == null ? "" : text);
             while (matcher.find()) {
                 String value = matcher.group(3);
-                if (TextUtils.isEmpty(value)) continue;
+                if (TextUtils.isEmpty(value) || value.trim().isEmpty()) continue;
                 items.add(new Word(parseLong(matcher.group(1)), parseLong(matcher.group(2)), value));
             }
             return items;
@@ -370,11 +370,11 @@ public class KuwoClient {
         }
 
         private long startMs() {
-            return Math.max(0, Math.round(start / 3.0));
+            return Math.max(0, Math.round((start + value) / 6.0));
         }
 
-        private long valueMs() {
-            return Math.max(0, Math.round(value / 3.0));
+        private long durationMs() {
+            return Math.max(0, Math.round((start - value) / 6.0));
         }
     }
 }
