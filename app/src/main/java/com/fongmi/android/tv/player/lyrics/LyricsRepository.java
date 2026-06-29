@@ -23,6 +23,7 @@ public class LyricsRepository {
     private final KuwoClient kuwo = new KuwoClient();
     private final QqMusicClient qqMusic = new QqMusicClient();
     private final NeteaseClient netease = new NeteaseClient();
+    private final TtmlClient ttml = new TtmlClient();
     private final LyricsMatcher matcher = new LyricsMatcher();
 
     public void load(LyricsRequest request, Callback callback) {
@@ -50,6 +51,10 @@ public class LyricsRepository {
         if (remote == null || !remote.isValid() || !remote.hasWordTiming()) {
             LyricsResult qq = qqMusic.find(request);
             if (shouldUseRemote(remote, qq)) remote = qq;
+        }
+        if (remote == null || !remote.isValid() || !remote.hasWordTiming()) {
+            LyricsResult ttmlResult = ttml.find(request);
+            if (shouldUseRemote(remote, ttmlResult)) remote = ttmlResult;
         }
         if (remote == null || !remote.isValid() || !remote.hasWordTiming()) {
             LyricsResult cloud = netease.find(request);
