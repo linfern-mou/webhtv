@@ -219,7 +219,6 @@ public class LyricsOverlayView extends FrameLayout {
             } else if (relativeMs >= word.getStartOffsetMs()) {
                 float progress = word.getDurationMs() <= 0 ? 1f : Math.min(1f, Math.max(0f, (relativeMs - word.getStartOffsetMs()) / (float) word.getDurationMs()));
                 span.setSpan(new KaraokeSpan(PRIMARY_COLOR, progress), start, stop, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                span.setSpan(new StyleSpan(Typeface.BOLD), start, stop, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                 return;
             } else {
                 return;
@@ -244,9 +243,17 @@ public class LyricsOverlayView extends FrameLayout {
     }
 
     private void refreshWordProgress() {
-        if (!playing || lines.isEmpty() || index < 0 || index >= lines.size() || !lines.get(index).hasWords()) return;
+        if (!playing || lines.isEmpty() || index < 0 || index >= lines.size()) return;
         long elapsed = Math.max(0, SystemClock.elapsedRealtime() - baseRealtimeMs);
         long position = basePositionMs + elapsed;
+        int nextIndex = LyricsParser.findLine(lines, position);
+        if (nextIndex != index) {
+            index = nextIndex;
+            render(position);
+            App.post(wordRefresh, WORD_REFRESH_MS);
+            return;
+        }
+        if (!lines.get(index).hasWords()) return;
         renderPrimaryLine(position);
         App.post(wordRefresh, WORD_REFRESH_MS);
     }
