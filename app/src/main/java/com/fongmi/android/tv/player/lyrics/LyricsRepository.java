@@ -22,6 +22,7 @@ public class LyricsRepository {
     private final LrcLibClient client = new LrcLibClient();
     private final KuwoClient kuwo = new KuwoClient();
     private final QqMusicClient qqMusic = new QqMusicClient();
+    private final NeteaseClient netease = new NeteaseClient();
     private final LyricsMatcher matcher = new LyricsMatcher();
 
     public void load(LyricsRequest request, Callback callback) {
@@ -48,7 +49,11 @@ public class LyricsRepository {
         LyricsResult remote = kuwo.find(request);
         if (remote == null || !remote.isValid() || !remote.hasWordTiming()) {
             LyricsResult qq = qqMusic.find(request);
-            if (shouldUseQq(remote, qq)) remote = qq;
+            if (shouldUseRemote(remote, qq)) remote = qq;
+        }
+        if (remote == null || !remote.isValid() || !remote.hasWordTiming()) {
+            LyricsResult cloud = netease.find(request);
+            if (shouldUseRemote(remote, cloud)) remote = cloud;
         }
         List<LrcLibClient.Entry> candidates = remote == null || !remote.isValid() ? client.findCandidates(request) : List.of();
         if (remote == null || !remote.isValid()) remote = matcher.best(request, candidates);
@@ -57,11 +62,11 @@ public class LyricsRepository {
         return remote;
     }
 
-    private boolean shouldUseQq(LyricsResult current, LyricsResult qq) {
-        if (qq == null || !qq.isValid()) return false;
+    private boolean shouldUseRemote(LyricsResult current, LyricsResult remote) {
+        if (remote == null || !remote.isValid()) return false;
         if (current == null || !current.isValid()) return true;
-        if (qq.hasWordTiming() && !current.hasWordTiming()) return true;
-        return qq.getScore() > current.getScore() + 10;
+        if (remote.hasWordTiming() && !current.hasWordTiming()) return true;
+        return remote.getScore() > current.getScore() + 10;
     }
 
     private LyricsResult readCache(LyricsRequest request) {
