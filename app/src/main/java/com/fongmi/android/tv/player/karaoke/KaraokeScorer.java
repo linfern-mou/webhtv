@@ -34,13 +34,13 @@ public class KaraokeScorer {
             updateCombo(sliceMs, sample.hit);
         }
         lastPositionMs = adjustedPositionMs;
-        return snapshot = snapshot(sample);
+        return snapshot = snapshot(adjustedPositionMs, sample);
     }
 
     public KaraokeScoreSnapshot evaluate(long positionMs, double frequencyHz, double volume, double confidence) {
         long adjustedPositionMs = Math.max(0, positionMs - config.getInputLatencyMs());
         Sample sample = sample(adjustedPositionMs, frequencyHz, volume, confidence);
-        return snapshot(sample);
+        return snapshot(adjustedPositionMs, sample);
     }
 
     public KaraokeScoreSnapshot getSnapshot() {
@@ -66,8 +66,8 @@ public class KaraokeScorer {
         }
     }
 
-    private KaraokeScoreSnapshot snapshot(Sample sample) {
-        return new KaraokeScoreSnapshot(totalWeightMs, hitWeightMs, voicedWeightMs, currentComboMs, bestComboMs, sample.note, sample.sungMidi, sample.distanceSemitones, sample.voiced, sample.hit);
+    private KaraokeScoreSnapshot snapshot(long positionMs, Sample sample) {
+        return new KaraokeScoreSnapshot(positionMs, totalWeightMs, hitWeightMs, voicedWeightMs, currentComboMs, bestComboMs, sample.note, sample.sungMidi, sample.distanceSemitones, sample.voiced, sample.hit);
     }
 
     private long nextSlice(long positionMs) {

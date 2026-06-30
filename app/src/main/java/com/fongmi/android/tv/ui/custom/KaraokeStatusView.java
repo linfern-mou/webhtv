@@ -15,6 +15,7 @@ import android.widget.LinearLayout;
 import androidx.annotation.Nullable;
 
 import com.fongmi.android.tv.R;
+import com.fongmi.android.tv.player.karaoke.KaraokeNote;
 import com.fongmi.android.tv.player.karaoke.KaraokePitch;
 import com.fongmi.android.tv.player.karaoke.KaraokePitchSample;
 import com.fongmi.android.tv.player.karaoke.KaraokeScoreSnapshot;
@@ -22,11 +23,14 @@ import com.fongmi.android.tv.player.karaoke.KaraokeStatus;
 import com.fongmi.android.tv.player.karaoke.KaraokeTrack;
 import com.google.android.material.textview.MaterialTextView;
 
+import java.util.List;
+
 public class KaraokeStatusView extends LinearLayout {
 
     private final MaterialTextView title;
     private final MaterialTextView detail;
     private final ScoreProgressView score;
+    private final NoteTimelineView timeline;
     private final PitchMeterView pitch;
     private final VolumeMeterView volume;
 
@@ -47,6 +51,7 @@ public class KaraokeStatusView extends LinearLayout {
         title = textView(context, 13, true);
         detail = textView(context, 12, false);
         score = new ScoreProgressView(context);
+        timeline = new NoteTimelineView(context);
         pitch = new PitchMeterView(context);
         volume = new VolumeMeterView(context);
         addView(title, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT));
@@ -54,6 +59,9 @@ public class KaraokeStatusView extends LinearLayout {
         LayoutParams scoreParams = new LayoutParams(dp(156), dp(12));
         scoreParams.topMargin = dp(8);
         addView(score, scoreParams);
+        LayoutParams timelineParams = new LayoutParams(dp(156), dp(30));
+        timelineParams.topMargin = dp(6);
+        addView(timeline, timelineParams);
         LayoutParams pitchParams = new LayoutParams(dp(156), dp(34));
         pitchParams.topMargin = dp(7);
         addView(pitch, pitchParams);
@@ -74,6 +82,8 @@ public class KaraokeStatusView extends LinearLayout {
         detail.setVisibility(text.isEmpty() ? GONE : VISIBLE);
         score.setState(snapshot);
         score.setVisibility(showScore(status, snapshot) ? VISIBLE : GONE);
+        timeline.setState(track, snapshot);
+        timeline.setVisibility(showTimeline(status, track, snapshot) ? VISIBLE : GONE);
         pitch.setState(sample, snapshot);
         pitch.setVisibility(showPitch(status, snapshot) ? VISIBLE : GONE);
         volume.setLevel(getVolumeLevel(status, sample));
@@ -121,6 +131,13 @@ public class KaraokeStatusView extends LinearLayout {
         return (status == KaraokeStatus.FREE_SING || status == KaraokeStatus.SCORING)
                 && snapshot != null
                 && snapshot.getTotalWeightMs() > 0;
+    }
+
+    private boolean showTimeline(KaraokeStatus status, KaraokeTrack track, KaraokeScoreSnapshot snapshot) {
+        return status == KaraokeStatus.SCORING
+                && track != null
+                && track.hasScoredNotes()
+                && snapshot != null;
     }
 
     private boolean showPitch(KaraokeStatus status, KaraokeScoreSnapshot snapshot) {
@@ -205,6 +222,126 @@ public class KaraokeStatusView extends LinearLayout {
             if (score >= 60) return 0xFF2DD4BF;
             if (score >= 40) return 0xFFFBBF24;
             return 0xFF38BDF8;
+        }
+    }
+
+    private class NoteTimelineView extends View {
+
+        private static final long WINDOW_BEFORE_MS = 2200;
+        private static final long WINDOW_AFTER_MS = 4200;
+        private static final int PITCH_RANGE = 7;
+
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF rect = new RectF();
+        private KaraokeTrack track;
+        private KaraokeScoreSnapshot snapshot;
+
+        private NoteTimelineView(Context context) {
+            super(context);
+        }
+
+        private void setState(KaraokeTrack track, KaraokeScoreSnapshot snapshot) {
+            this.track = track;
+            this.snapshot = snapshot;
+            invalidate();
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            if (track == null || snapshot == null || track.isEmpty()) return;
+            float left = dp(2);
+            float right = getWidth() - dp(2);
+            float top = dp(3);
+            float bottom = getHeight() - dp(3);
+            long position = snapshot.getPositionMs();
+            long start = Math.max(0, position - WINDOW_BEFORE_MS);
+            long end = position + WINDOW_AFTER_MS;
+            int centerPitch = centerPitch(position, start, end);
+            drawBackground(canvas, left, right, top, bottom);
+            drawNotes(canvas, left, right, top, bottom, start, end, centerPitch);
+            drawCursor(canvas, left, right, top, bottom);
+            drawSungMarker(canvas, left, right, top, bottom, centerPitch);
+        }
+
+        private void drawBackground(Canvas canvas, float left, float right, float top, float bottom) {
+            rect.set(left, top, right, bottom);
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(0x18FFFFFF);
+            canvas.drawRoundRect(rect, dp(4), dp(4), paint);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(dp(1));
+            paint.setColor(0x20FFFFFF);
+            canvas.drawRoundRect(rect, dp(4), dp(4), paint);
+        }
+
+        private void drawNotes(Canvas canvas, float left, float right, float top, float bottom, long start, long end, int centerPitch) {
+            List<KaraokeNote> notes = track.getNotes();
+            for (KaraokeNote note : notes) {
+                if (!note.isScored() || note.getEndMs() < start || note.getStartMs() > end) continue;
+                float x1 = xOf(note.getStartMs(), start, end, left, right);
+                float x2 = xOf(note.getEndMs(), start, end, left, right);
+                float y = yOf(note.isPitchRequired() ? note.getPitch() : centerPitch, centerPitch, top, bottom);
+                float h = note.isPitchRequired() ? dp(5) : dp(4);
+                rect.set(Math.max(left, x1), y - h / 2f, Math.min(right, Math.max(x2, x1 + dp(2))), y + h / 2f);
+                paint.setStyle(Paint.Style.FILL);
+                paint.setColor(noteColor(note));
+                canvas.drawRoundRect(rect, h / 2f, h / 2f, paint);
+            }
+        }
+
+        private void drawCursor(Canvas canvas, float left, float right, float top, float bottom) {
+            float x = left + (right - left) * WINDOW_BEFORE_MS / (float) (WINDOW_BEFORE_MS + WINDOW_AFTER_MS);
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(0x99FFFFFF);
+            canvas.drawRect(x - dp(0.7f), top, x + dp(0.7f), bottom, paint);
+        }
+
+        private void drawSungMarker(Canvas canvas, float left, float right, float top, float bottom, int centerPitch) {
+            if (!snapshot.isVoiced() || Double.isNaN(snapshot.getSungMidi())) return;
+            double midi = snapshot.getSungMidi();
+            if (snapshot.getTargetNote() != null && !Double.isNaN(snapshot.getDistanceSemitones())) midi = snapshot.getTargetNote().getPitch() + snapshot.getDistanceSemitones();
+            float x = left + (right - left) * WINDOW_BEFORE_MS / (float) (WINDOW_BEFORE_MS + WINDOW_AFTER_MS);
+            float y = yOf((float) midi, centerPitch, top, bottom);
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(snapshot.isHit() ? 0xFF34D399 : 0xFFFBBF24);
+            canvas.drawCircle(x, y, dp(3.6f), paint);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(dp(1));
+            paint.setColor(0xD9000000);
+            canvas.drawCircle(x, y, dp(3.6f), paint);
+        }
+
+        private int centerPitch(long position, long start, long end) {
+            KaraokeNote current = snapshot.getTargetNote();
+            if (current != null && current.isPitchRequired()) return current.getPitch();
+            int count = 0;
+            int sum = 0;
+            for (KaraokeNote note : track.getNotes()) {
+                if (!note.isScored() || !note.isPitchRequired() || note.getEndMs() < start || note.getStartMs() > end) continue;
+                sum += note.getPitch();
+                count++;
+            }
+            if (count > 0) return Math.round(sum / (float) count);
+            KaraokeNote note = track.findScoredNote(position);
+            return note == null ? 60 : note.getPitch();
+        }
+
+        private float xOf(long timeMs, long start, long end, float left, float right) {
+            float value = (timeMs - start) / (float) Math.max(1, end - start);
+            return left + (right - left) * Math.max(0, Math.min(1, value));
+        }
+
+        private float yOf(float pitch, int centerPitch, float top, float bottom) {
+            float diff = Math.max(-PITCH_RANGE, Math.min(PITCH_RANGE, pitch - centerPitch));
+            float center = (top + bottom) / 2f;
+            return center - diff * (bottom - top - dp(6)) / (PITCH_RANGE * 2f);
+        }
+
+        private int noteColor(KaraokeNote note) {
+            if (!note.isPitchRequired()) return 0x9938BDF8;
+            if (note.getType().getScoreWeight() > 1.0) return 0xCCFBBF24;
+            return 0xCCFFFFFF;
         }
     }
 

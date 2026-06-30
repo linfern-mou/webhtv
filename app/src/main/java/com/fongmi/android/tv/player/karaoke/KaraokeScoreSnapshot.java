@@ -2,6 +2,7 @@ package com.fongmi.android.tv.player.karaoke;
 
 public class KaraokeScoreSnapshot {
 
+    private final long positionMs;
     private final double totalWeightMs;
     private final double hitWeightMs;
     private final double voicedWeightMs;
@@ -18,6 +19,11 @@ public class KaraokeScoreSnapshot {
     }
 
     public KaraokeScoreSnapshot(double totalWeightMs, double hitWeightMs, double voicedWeightMs, double currentComboMs, double bestComboMs, KaraokeNote targetNote, double sungMidi, double distanceSemitones, boolean voiced, boolean hit) {
+        this(0, totalWeightMs, hitWeightMs, voicedWeightMs, currentComboMs, bestComboMs, targetNote, sungMidi, distanceSemitones, voiced, hit);
+    }
+
+    public KaraokeScoreSnapshot(long positionMs, double totalWeightMs, double hitWeightMs, double voicedWeightMs, double currentComboMs, double bestComboMs, KaraokeNote targetNote, double sungMidi, double distanceSemitones, boolean voiced, boolean hit) {
+        this.positionMs = Math.max(0, positionMs);
         this.totalWeightMs = Math.max(0, totalWeightMs);
         this.hitWeightMs = Math.max(0, hitWeightMs);
         this.voicedWeightMs = Math.max(0, voicedWeightMs);
@@ -28,6 +34,10 @@ public class KaraokeScoreSnapshot {
         this.distanceSemitones = distanceSemitones;
         this.voiced = voiced;
         this.hit = hit;
+    }
+
+    public long getPositionMs() {
+        return positionMs;
     }
 
     public double getTotalWeightMs() {

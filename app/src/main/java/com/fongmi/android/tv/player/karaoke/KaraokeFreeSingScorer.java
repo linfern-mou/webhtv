@@ -42,7 +42,7 @@ public class KaraokeFreeSingScorer {
         long sliceMs = nextSlice(adjustedPositionMs);
         if (sliceMs > 0 && adjustedPositionMs >= warmupUntilMs && window.active) score(sliceMs, window, current);
         lastPositionMs = adjustedPositionMs;
-        snapshot = new KaraokeScoreSnapshot(totalWeightMs, hitWeightMs, voicedWeightMs, currentComboMs, bestComboMs, null, current.sungMidi, Double.NaN, current.voiced, current.voiced);
+        snapshot = new KaraokeScoreSnapshot(adjustedPositionMs, totalWeightMs, hitWeightMs, voicedWeightMs, currentComboMs, bestComboMs, null, current.sungMidi, Double.NaN, current.voiced, current.voiced);
         return snapshot;
     }
 
