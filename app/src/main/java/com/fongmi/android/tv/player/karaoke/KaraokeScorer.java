@@ -7,6 +7,9 @@ public class KaraokeScorer {
     private long lastPositionMs = -1;
     private double totalWeightMs;
     private double hitWeightMs;
+    private double voicedWeightMs;
+    private long currentComboMs;
+    private long bestComboMs;
     private KaraokeScoreSnapshot snapshot;
 
     public KaraokeScorer(KaraokeTrack track) {
@@ -26,16 +29,18 @@ public class KaraokeScorer {
         if (sliceMs > 0 && sample.note != null && sample.note.isScored()) {
             double weight = sliceMs * sample.note.getType().getScoreWeight();
             totalWeightMs += weight;
+            if (sample.voiced) voicedWeightMs += weight;
             if (sample.hit) hitWeightMs += weight;
+            updateCombo(sliceMs, sample.hit);
         }
         lastPositionMs = adjustedPositionMs;
-        return snapshot = new KaraokeScoreSnapshot(totalWeightMs, hitWeightMs, sample.note, sample.sungMidi, sample.distanceSemitones, sample.voiced, sample.hit);
+        return snapshot = snapshot(sample);
     }
 
     public KaraokeScoreSnapshot evaluate(long positionMs, double frequencyHz, double volume, double confidence) {
         long adjustedPositionMs = Math.max(0, positionMs - config.getInputLatencyMs());
         Sample sample = sample(adjustedPositionMs, frequencyHz, volume, confidence);
-        return new KaraokeScoreSnapshot(totalWeightMs, hitWeightMs, sample.note, sample.sungMidi, sample.distanceSemitones, sample.voiced, sample.hit);
+        return snapshot(sample);
     }
 
     public KaraokeScoreSnapshot getSnapshot() {
@@ -46,13 +51,32 @@ public class KaraokeScorer {
         lastPositionMs = -1;
         totalWeightMs = 0;
         hitWeightMs = 0;
+        voicedWeightMs = 0;
+        currentComboMs = 0;
+        bestComboMs = 0;
         snapshot = new KaraokeScoreSnapshot(0, 0, null, Double.NaN, Double.NaN, false, false);
+    }
+
+    private void updateCombo(long sliceMs, boolean hit) {
+        if (hit) {
+            currentComboMs += sliceMs;
+            bestComboMs = Math.max(bestComboMs, currentComboMs);
+        } else {
+            currentComboMs = 0;
+        }
+    }
+
+    private KaraokeScoreSnapshot snapshot(Sample sample) {
+        return new KaraokeScoreSnapshot(totalWeightMs, hitWeightMs, voicedWeightMs, currentComboMs, bestComboMs, sample.note, sample.sungMidi, sample.distanceSemitones, sample.voiced, sample.hit);
     }
 
     private long nextSlice(long positionMs) {
         if (lastPositionMs < 0) return 0;
         long delta = positionMs - lastPositionMs;
-        if (delta <= 0 || delta > 2_000) return 0;
+        if (delta <= 0 || delta > 2_000) {
+            currentComboMs = 0;
+            return 0;
+        }
         return Math.min(delta, config.getMaxSliceMs());
     }
 

@@ -90,12 +90,17 @@ public class KaraokeStatusView extends LinearLayout {
             String state = snapshot.isHit()
                     ? getResources().getString(R.string.player_karaoke_pitch_hit)
                     : getResources().getString(R.string.player_karaoke_pitch_miss, Math.abs(snapshot.getDistanceSemitones()));
-            return getResources().getString(R.string.player_karaoke_pitch_score, pitch, state);
+            return appendCombo(getResources().getString(R.string.player_karaoke_pitch_score, pitch, state), snapshot);
         }
         if (status == KaraokeStatus.FREE_SING && snapshot != null && snapshot.getTotalWeightMs() > 0) {
-            return getResources().getString(R.string.player_karaoke_free_detail, pitch, snapshot.getScorePercent());
+            return appendCombo(getResources().getString(R.string.player_karaoke_free_detail, pitch, snapshot.getScorePercent()), snapshot);
         }
         return getResources().getString(R.string.player_karaoke_pitch, pitch);
+    }
+
+    private String appendCombo(String text, KaraokeScoreSnapshot snapshot) {
+        if (snapshot == null || snapshot.getCurrentComboSeconds() < 2) return text;
+        return text + " · " + getResources().getString(R.string.player_karaoke_combo, snapshot.getCurrentComboSeconds());
     }
 
     private boolean showVolume(KaraokeStatus status) {

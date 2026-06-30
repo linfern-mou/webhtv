@@ -826,6 +826,7 @@
     <string name="player_karaoke_pitch_hit">命中</string>
     <string name="player_karaoke_pitch_miss">偏差 %1$.1f 半音</string>
     <string name="player_karaoke_free_detail">音高 %1$s · 参与 %2$d%%</string>
+    <string name="player_karaoke_combo">连击 %1$d 秒</string>
     <string name="player_karaoke_track">评分谱</string>
     <string name="player_karaoke_track_generate">生成轻量节奏评分谱</string>
     <string name="player_karaoke_track_search">搜索在线评分谱</string>
@@ -849,7 +850,7 @@
     <string name="player_karaoke_result_title">K歌结果</string>
     <string name="player_karaoke_result_scoring">音准评分</string>
     <string name="player_karaoke_result_free">自由唱</string>
-    <string name="player_karaoke_result_message">%1$s\n得分：%2$d\n有效时长：%3$d 秒\n%4$s：%5$d%%</string>
+    <string name="player_karaoke_result_message">%1$s\n得分：%2$d\n有效时长：%3$d 秒\n%4$s：%5$d%%\n演唱覆盖：%6$d%%\n最长连击：%7$d 秒</string>
     <string name="player_karaoke_result_track">评分谱：%1$s</string>
     <string name="player_karaoke_result_metric_hit">命中率</string>
     <string name="player_karaoke_result_metric_participation">参与度</string>

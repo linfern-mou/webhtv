@@ -828,6 +828,7 @@
     <string name="player_karaoke_pitch_hit">Hit</string>
     <string name="player_karaoke_pitch_miss">Off %1$.1f st</string>
     <string name="player_karaoke_free_detail">Pitch %1$s · Participation %2$d%%</string>
+    <string name="player_karaoke_combo">Combo %1$d sec</string>
     <string name="player_karaoke_track">Scoring track</string>
     <string name="player_karaoke_track_generate">Generate lightweight rhythm track</string>
     <string name="player_karaoke_track_search">Search online tracks</string>
@@ -851,7 +852,7 @@
     <string name="player_karaoke_result_title">Karaoke result</string>
     <string name="player_karaoke_result_scoring">Pitch scoring</string>
     <string name="player_karaoke_result_free">Free sing</string>
-    <string name="player_karaoke_result_message">%1$s\nScore: %2$d\nActive time: %3$d sec\n%4$s: %5$d%%</string>
+    <string name="player_karaoke_result_message">%1$s\nScore: %2$d\nActive time: %3$d sec\n%4$s: %5$d%%\nVoice coverage: %6$d%%\nBest combo: %7$d sec</string>
     <string name="player_karaoke_result_track">Track: %1$s</string>
     <string name="player_karaoke_result_metric_hit">Hit rate</string>
     <string name="player_karaoke_result_metric_participation">Participation</string>

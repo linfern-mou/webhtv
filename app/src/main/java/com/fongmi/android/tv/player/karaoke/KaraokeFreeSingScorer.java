@@ -17,6 +17,9 @@ public class KaraokeFreeSingScorer {
     private long warmupUntilMs = WARMUP_MS;
     private long totalWeightMs;
     private double hitWeightMs;
+    private long voicedWeightMs;
+    private long currentComboMs;
+    private long bestComboMs;
     private int lineIndex = -1;
     private long lineActiveMs;
     private long lineVoicedMs;
@@ -39,7 +42,7 @@ public class KaraokeFreeSingScorer {
         long sliceMs = nextSlice(adjustedPositionMs);
         if (sliceMs > 0 && adjustedPositionMs >= warmupUntilMs && window.active) score(sliceMs, window, current);
         lastPositionMs = adjustedPositionMs;
-        snapshot = new KaraokeScoreSnapshot(totalWeightMs, hitWeightMs, null, current.sungMidi, Double.NaN, current.voiced, current.voiced);
+        snapshot = new KaraokeScoreSnapshot(totalWeightMs, hitWeightMs, voicedWeightMs, currentComboMs, bestComboMs, null, current.sungMidi, Double.NaN, current.voiced, current.voiced);
         return snapshot;
     }
 
@@ -52,6 +55,9 @@ public class KaraokeFreeSingScorer {
         warmupUntilMs = WARMUP_MS;
         totalWeightMs = 0;
         hitWeightMs = 0;
+        voicedWeightMs = 0;
+        currentComboMs = 0;
+        bestComboMs = 0;
         lineIndex = -1;
         lineActiveMs = 0;
         lineVoicedMs = 0;
@@ -71,6 +77,13 @@ public class KaraokeFreeSingScorer {
         double score = freeScore(sample);
         totalWeightMs += sliceMs;
         hitWeightMs += sliceMs * score;
+        if (sample.voiced) {
+            voicedWeightMs += sliceMs;
+            currentComboMs += sliceMs;
+            bestComboMs = Math.max(bestComboMs, currentComboMs);
+        } else {
+            currentComboMs = 0;
+        }
         if (sample.voiced) lastMidi = sample.sungMidi;
     }
 
@@ -113,6 +126,7 @@ public class KaraokeFreeSingScorer {
             lineActiveMs = 0;
             lineVoicedMs = 0;
             lastMidi = Double.NaN;
+            currentComboMs = 0;
             return 0;
         }
         return Math.min(delta, config.getMaxSliceMs());
