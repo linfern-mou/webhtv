@@ -25,8 +25,11 @@ public class KaraokePitchTrackGenerator {
     private static final long BEAT_MS = 10;
     private static final int RAP_PITCH = 60;
     private static final int MAX_NOTES = 900;
-    private static final long MIN_NOTE_MS = 80;
+    private static final long MIN_NOTE_MS = 120;
+    private static final long MIN_STABLE_NOTE_MS = 180;
     private static final long DEFAULT_LAST_LINE_MS = 3000;
+    private static final long LINE_UNIT_MS = 520;
+    private static final int MAX_LINE_UNITS = 10;
     private static final int FRAME_SIZE = 2048;
     private static final int HOP_SIZE = 1024;
     private static final double MIN_FREQUENCY_HZ = 80.0;
@@ -42,8 +45,22 @@ public class KaraokePitchTrackGenerator {
     private static final int MAX_MIDI = 84;
     private static final int GAP_FILL_MAX_NOTES = 8;
     private static final int OUTLIER_STEP = 9;
+    private static final int MERGE_STRONG_DELTA = 1;
+    private static final int MERGE_WEAK_DELTA = 2;
+    private static final long MERGE_GAP_MS = 140;
+    private static final long MERGE_MAX_MS = 2600;
+    public static final int STAGE_PREPARE = 0;
+    public static final int STAGE_DECODE = 1;
+    public static final int STAGE_ANALYZE = 2;
+    public static final int STAGE_WRITE = 3;
+    public static final int STAGE_FINISH = 4;
 
     private KaraokePitchTrackGenerator() {
+    }
+
+    public interface Progress {
+
+        void onProgress(int percent, int stage, long elapsedMs, long remainingMs);
     }
 
     public static boolean canGenerate(KaraokeTrackRepository.MediaInput input, List<LyricsLine> lines) {
@@ -51,15 +68,24 @@ public class KaraokePitchTrackGenerator {
     }
 
     public static String build(KaraokeTrackRepository.MediaInput input, List<LyricsLine> lines) throws Exception {
-        if (!canGenerate(input, lines)) throw new IllegalStateException("no timed lyrics");
-        List<Segment> segments = segments(lines, input.getDuration());
-        if (segments.size() < 3) throw new IllegalStateException("not enough lyric timing");
-        List<PitchFrame> frames = decode(input);
-        if (frames.isEmpty()) throw new IllegalStateException("no pitch frames");
-        return buildText(input.getKeyword(), input.getArtist(), segments, frames);
+        return build(input, lines, null);
     }
 
-    private static String buildText(String title, String artist, List<Segment> segments, List<PitchFrame> frames) {
+    public static String build(KaraokeTrackRepository.MediaInput input, List<LyricsLine> lines, Progress progress) throws Exception {
+        ProgressReporter reporter = new ProgressReporter(progress);
+        if (!canGenerate(input, lines)) throw new IllegalStateException("no timed lyrics");
+        reporter.update(1, STAGE_PREPARE);
+        List<Segment> segments = segments(lines, input.getDuration());
+        if (segments.size() < 3) throw new IllegalStateException("not enough lyric timing");
+        List<PitchFrame> frames = decode(input, reporter);
+        if (frames.isEmpty()) throw new IllegalStateException("no pitch frames");
+        reporter.update(78, STAGE_ANALYZE);
+        String text = buildText(input.getKeyword(), input.getArtist(), segments, frames, reporter);
+        reporter.update(100, STAGE_FINISH);
+        return text;
+    }
+
+    private static String buildText(String title, String artist, List<Segment> segments, List<PitchFrame> frames, ProgressReporter reporter) {
         StringBuilder builder = new StringBuilder();
         builder.append("#TITLE:").append(tag(title, "Generated pitch track")).append('\n');
         builder.append("#ARTIST:").append(tag(artist, "Unknown")).append('\n');
@@ -67,7 +93,11 @@ public class KaraokePitchTrackGenerator {
         builder.append("#GAP:0").append('\n');
         builder.append("#COMMENT:Generated experimental pitch scoring track from local audio; octave corrected and smoothed").append('\n');
         List<Note> notes = notes(segments, frames);
+        reporter.update(82, STAGE_ANALYZE);
         stabilize(notes);
+        smoothLineContour(notes);
+        notes = mergeNotes(notes);
+        reporter.update(90, STAGE_WRITE);
         int count = 0;
         int observed = 0;
         int pitched = 0;
@@ -102,6 +132,75 @@ public class KaraokePitchTrackGenerator {
         fillMissing(notes);
         correctOctaves(notes);
         smoothOutliers(notes);
+    }
+
+    private static void smoothLineContour(List<Note> notes) {
+        int start = 0;
+        while (start < notes.size()) {
+            int end = start;
+            while (end < notes.size() && !notes.get(end).segment.lineEnd) end++;
+            end = Math.min(notes.size() - 1, end);
+            smoothLineContour(notes, start, end);
+            start = end + 1;
+        }
+    }
+
+    private static void smoothLineContour(List<Note> notes, int start, int end) {
+        List<Integer> pitches = new ArrayList<>();
+        for (int i = start; i <= end; i++) if (notes.get(i).pitch >= 0) pitches.add(notes.get(i).pitch);
+        if (pitches.size() < 2) return;
+        Collections.sort(pitches);
+        int median = pitches.get(pitches.size() / 2);
+        for (int i = start; i <= end; i++) {
+            Note note = notes.get(i);
+            if (note.pitch < 0) continue;
+            int normalized = normalizeOctave(note.pitch, median);
+            if (Math.abs(normalized - median) <= 3 && (note.quality < 0.55 || note.estimated)) {
+                note.pitch = median;
+                note.estimated = true;
+            } else {
+                note.pitch = normalized;
+            }
+        }
+    }
+
+    private static List<Note> mergeNotes(List<Note> notes) {
+        List<Note> merged = new ArrayList<>();
+        for (Note note : notes) {
+            if (!merged.isEmpty() && canMerge(merged.get(merged.size() - 1), note)) {
+                merged.set(merged.size() - 1, merge(merged.get(merged.size() - 1), note));
+            } else {
+                merged.add(note);
+            }
+        }
+        return merged;
+    }
+
+    private static boolean canMerge(Note previous, Note next) {
+        if (previous == null || next == null || previous.segment.lineEnd) return false;
+        if (previous.pitch < 0 || next.pitch < 0) return false;
+        if (next.segment.startMs - previous.segment.endMs > MERGE_GAP_MS) return false;
+        long duration = next.segment.endMs - previous.segment.startMs;
+        if (duration > MERGE_MAX_MS) return false;
+        int delta = Math.abs(normalizeOctave(next.pitch, previous.pitch) - previous.pitch);
+        if (delta <= MERGE_STRONG_DELTA) return true;
+        long previousDuration = previous.segment.endMs - previous.segment.startMs;
+        long nextDuration = next.segment.endMs - next.segment.startMs;
+        return delta <= MERGE_WEAK_DELTA
+                && (previous.estimated || next.estimated || previous.quality < 0.55 || next.quality < 0.55 || Math.min(previousDuration, nextDuration) < MIN_STABLE_NOTE_MS);
+    }
+
+    private static Note merge(Note previous, Note next) {
+        int nextPitch = normalizeOctave(next.pitch, previous.pitch);
+        long previousDuration = Math.max(1, previous.segment.endMs - previous.segment.startMs);
+        long nextDuration = Math.max(1, next.segment.endMs - next.segment.startMs);
+        int pitch = clampMidi(Math.round((previous.pitch * previousDuration + nextPitch * nextDuration) / (float) (previousDuration + nextDuration)));
+        Segment segment = new Segment(previous.segment.startMs, next.segment.endMs, previous.segment.text + next.segment.text);
+        segment.lineEnd = next.segment.lineEnd;
+        boolean estimated = previous.estimated || next.estimated || previous.pitch != pitch || nextPitch != pitch;
+        boolean observed = previous.observed || next.observed;
+        double quality = Math.max(previous.quality, next.quality);
+        return new Note(segment, pitch, observed, quality, estimated);
     }
 
     private static void correctOctaves(List<Note> notes) {
@@ -216,10 +315,11 @@ public class KaraokePitchTrackGenerator {
                 .append(lyric(lyric)).append('\n');
     }
 
-    private static List<PitchFrame> decode(KaraokeTrackRepository.MediaInput input) throws Exception {
+    private static List<PitchFrame> decode(KaraokeTrackRepository.MediaInput input, ProgressReporter reporter) throws Exception {
         MediaExtractor extractor = new MediaExtractor();
         MediaCodec decoder = null;
         try {
+            reporter.update(5, STAGE_DECODE);
             setDataSource(extractor, input.getUrl(), input.getHeaders());
             int track = selectAudioTrack(extractor);
             if (track < 0) throw new IllegalStateException("no audio track");
@@ -230,7 +330,7 @@ public class KaraokePitchTrackGenerator {
             decoder = MediaCodec.createDecoderByType(mime);
             decoder.configure(format, null, null, 0);
             decoder.start();
-            return decodeLoop(extractor, decoder, format);
+            return decodeLoop(extractor, decoder, format, reporter, durationMs(input, format));
         } finally {
             try {
                 extractor.release();
@@ -246,7 +346,7 @@ public class KaraokePitchTrackGenerator {
         }
     }
 
-    private static List<PitchFrame> decodeLoop(MediaExtractor extractor, MediaCodec decoder, MediaFormat inputFormat) {
+    private static List<PitchFrame> decodeLoop(MediaExtractor extractor, MediaCodec decoder, MediaFormat inputFormat, ProgressReporter reporter, long durationMs) {
         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
         PitchFrameCollector collector = new PitchFrameCollector(sampleRate(inputFormat));
         boolean inputDone = false;
@@ -263,7 +363,9 @@ public class KaraokePitchTrackGenerator {
                         decoder.queueInputBuffer(inputIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
                         inputDone = true;
                     } else {
-                        decoder.queueInputBuffer(inputIndex, 0, size, extractor.getSampleTime(), extractor.getSampleFlags());
+                        long sampleTimeUs = extractor.getSampleTime();
+                        decoder.queueInputBuffer(inputIndex, 0, size, sampleTimeUs, extractor.getSampleFlags());
+                        reporter.decode(sampleTimeUs, durationMs);
                         extractor.advance();
                     }
                 }
@@ -340,6 +442,12 @@ public class KaraokePitchTrackGenerator {
         return format != null && format.containsKey(MediaFormat.KEY_SAMPLE_RATE) ? Math.max(1, format.getInteger(MediaFormat.KEY_SAMPLE_RATE)) : 44_100;
     }
 
+    private static long durationMs(KaraokeTrackRepository.MediaInput input, MediaFormat format) {
+        if (input != null && input.getDuration() > 0) return input.getDuration();
+        if (format != null && format.containsKey(MediaFormat.KEY_DURATION)) return Math.max(0, format.getLong(MediaFormat.KEY_DURATION) / 1000L);
+        return 0;
+    }
+
     private static List<Segment> segments(List<LyricsLine> lines, long durationMs) {
         List<Segment> segments = new ArrayList<>();
         for (int i = 0; i < lines.size() && segments.size() < MAX_NOTES; i++) {
@@ -367,7 +475,7 @@ public class KaraokePitchTrackGenerator {
     }
 
     private static void appendLineSegments(List<Segment> segments, String text, long startMs, long endMs) {
-        List<String> units = splitUnits(text);
+        List<String> units = splitUnits(text, Math.max(MIN_NOTE_MS, endMs - startMs));
         if (units.isEmpty()) return;
         long durationMs = Math.max(MIN_NOTE_MS * units.size(), endMs - startMs);
         long unitMs = Math.max(MIN_NOTE_MS, durationMs / units.size());
@@ -392,20 +500,43 @@ public class KaraokePitchTrackGenerator {
         return lineEndMs;
     }
 
-    private static List<String> splitUnits(String text) {
+    private static List<String> splitUnits(String text, long durationMs) {
         String clean = lyric(text);
         List<String> units = new ArrayList<>();
         if (TextUtils.isEmpty(clean)) return units;
         if (clean.matches(".*\\s+.*")) {
             for (String unit : clean.split("\\s+")) if (!TextUtils.isEmpty(unit)) units.add(unit);
-        } else if (clean.codePointCount(0, clean.length()) <= 24) {
-            for (int i = 0; i < clean.length(); ) {
-                int codePoint = clean.codePointAt(i);
-                units.add(new String(Character.toChars(codePoint)));
-                i += Character.charCount(codePoint);
+            return compactUnits(units, targetUnitCount(units.size(), durationMs), " ");
+        }
+        List<String> chars = new ArrayList<>();
+        for (int i = 0; i < clean.length(); ) {
+            int codePoint = clean.codePointAt(i);
+            chars.add(new String(Character.toChars(codePoint)));
+            i += Character.charCount(codePoint);
+        }
+        return compactUnits(chars, targetUnitCount(chars.size(), durationMs), "");
+    }
+
+    private static int targetUnitCount(int sourceCount, long durationMs) {
+        if (sourceCount <= 0) return 0;
+        if (sourceCount <= 4) return sourceCount;
+        int byDuration = Math.max(1, Math.round(durationMs / (float) LINE_UNIT_MS));
+        int byText = Math.max(1, (int) Math.ceil(sourceCount / 2.0));
+        return Math.max(1, Math.min(Math.min(MAX_LINE_UNITS, sourceCount), Math.min(byDuration, byText)));
+    }
+
+    private static List<String> compactUnits(List<String> source, int targetCount, String separator) {
+        List<String> units = new ArrayList<>();
+        if (source.isEmpty()) return units;
+        int count = Math.max(1, Math.min(source.size(), targetCount));
+        int groupSize = (int) Math.ceil(source.size() / (double) count);
+        for (int i = 0; i < source.size(); i += groupSize) {
+            StringBuilder builder = new StringBuilder();
+            for (int j = i; j < Math.min(source.size(), i + groupSize); j++) {
+                if (builder.length() > 0) builder.append(separator);
+                builder.append(source.get(j));
             }
-        } else {
-            units.add(clean);
+            units.add(builder.toString());
         }
         return units;
     }
@@ -443,10 +574,15 @@ public class KaraokePitchTrackGenerator {
         private boolean estimated;
 
         private Note(Segment segment, PitchCandidate candidate) {
+            this(segment, candidate.pitch, candidate.pitch >= 0, candidate.quality, false);
+        }
+
+        private Note(Segment segment, int pitch, boolean observed, double quality, boolean estimated) {
             this.segment = segment;
-            this.pitch = candidate.pitch;
-            this.quality = candidate.quality;
-            this.observed = candidate.pitch >= 0;
+            this.pitch = pitch >= 0 ? clampMidi(pitch) : -1;
+            this.quality = Math.max(0, Math.min(1, quality));
+            this.observed = observed;
+            this.estimated = estimated;
         }
     }
 
@@ -535,6 +671,44 @@ public class KaraokePitchTrackGenerator {
 
         private List<PitchFrame> frames() {
             return frames;
+        }
+    }
+
+    private static class ProgressReporter {
+
+        private static final long THROTTLE_MS = 350;
+
+        private final Progress progress;
+        private final long startMs = System.currentTimeMillis();
+        private int lastPercent = -1;
+        private int lastStage = -1;
+        private long lastEmitMs;
+
+        private ProgressReporter(Progress progress) {
+            this.progress = progress;
+        }
+
+        private void decode(long sampleTimeUs, long durationMs) {
+            if (durationMs <= 0 || sampleTimeUs < 0) {
+                update(Math.max(lastPercent, 12), STAGE_DECODE);
+                return;
+            }
+            double ratio = Math.max(0, Math.min(1, sampleTimeUs / (durationMs * 1000.0)));
+            update(5 + (int) Math.round(ratio * 68), STAGE_DECODE);
+        }
+
+        private void update(int percent, int stage) {
+            if (progress == null) return;
+            long now = System.currentTimeMillis();
+            int safePercent = Math.max(0, Math.min(100, Math.max(percent, lastPercent)));
+            if (safePercent < 100 && safePercent == lastPercent && stage == lastStage && now - lastEmitMs < THROTTLE_MS) return;
+            if (safePercent < 100 && now - lastEmitMs < THROTTLE_MS && stage == lastStage) return;
+            lastPercent = safePercent;
+            lastStage = stage;
+            lastEmitMs = now;
+            long elapsedMs = Math.max(0, now - startMs);
+            long remainingMs = safePercent > 3 && safePercent < 100 ? Math.round(elapsedMs * (100 - safePercent) / (double) safePercent) : -1;
+            progress.onProgress(safePercent, stage, elapsedMs, remainingMs);
         }
     }
 

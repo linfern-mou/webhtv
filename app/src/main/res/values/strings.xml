@@ -857,6 +857,15 @@
     <string name="player_karaoke_track_generated">Lightweight rhythm track generated</string>
     <string name="player_karaoke_track_generating_pitch">Generating experimental pitch track...</string>
     <string name="player_karaoke_track_generating_pitch_message">Analyzing the current audio locally and generating a pitch scoring track. Keep the player open until it finishes.</string>
+    <string name="player_karaoke_track_generating_pitch_progress">%1$d%% · %2$s · %3$s</string>
+    <string name="player_karaoke_track_pitch_stage_prepare">Preparing</string>
+    <string name="player_karaoke_track_pitch_stage_decode">Decoding audio</string>
+    <string name="player_karaoke_track_pitch_stage_analyze">Analyzing pitch</string>
+    <string name="player_karaoke_track_pitch_stage_write">Writing scoring track</string>
+    <string name="player_karaoke_track_pitch_stage_finish">Finishing</string>
+    <string name="player_karaoke_track_pitch_remaining_unknown">Remaining time estimating</string>
+    <string name="player_karaoke_track_pitch_remaining_seconds">About %1$d s left</string>
+    <string name="player_karaoke_track_pitch_remaining_minutes">About %1$d min %2$d s left</string>
     <string name="player_karaoke_track_generated_pitch">Experimental pitch track generated</string>
     <string name="player_karaoke_track_generated_pitch_message">Applied to the current song and karaoke mode is enabled.</string>
     <string name="player_karaoke_track_generate_pitch_failed">Failed to generate experimental pitch track</string>

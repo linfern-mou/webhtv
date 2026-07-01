@@ -855,6 +855,15 @@
     <string name="player_karaoke_track_generated">轻量节奏评分谱已生成</string>
     <string name="player_karaoke_track_generating_pitch">正在生成实验音高评分谱...</string>
     <string name="player_karaoke_track_generating_pitch_message">正在本地分析当前音频并生成带音高的评分谱，完成前请勿关闭播放器。</string>
+    <string name="player_karaoke_track_generating_pitch_progress">%1$d%% · %2$s · %3$s</string>
+    <string name="player_karaoke_track_pitch_stage_prepare">准备中</string>
+    <string name="player_karaoke_track_pitch_stage_decode">解码音频</string>
+    <string name="player_karaoke_track_pitch_stage_analyze">分析音高</string>
+    <string name="player_karaoke_track_pitch_stage_write">写入评分谱</string>
+    <string name="player_karaoke_track_pitch_stage_finish">收尾中</string>
+    <string name="player_karaoke_track_pitch_remaining_unknown">正在估算剩余时间</string>
+    <string name="player_karaoke_track_pitch_remaining_seconds">剩余约 %1$d 秒</string>
+    <string name="player_karaoke_track_pitch_remaining_minutes">剩余约 %1$d 分 %2$d 秒</string>
     <string name="player_karaoke_track_generated_pitch">实验音高评分谱已生成</string>
     <string name="player_karaoke_track_generated_pitch_message">已应用到当前歌曲，K歌模式已开启。</string>
     <string name="player_karaoke_track_generate_pitch_failed">实验音高评分谱生成失败</string>

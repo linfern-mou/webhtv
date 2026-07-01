@@ -123,10 +123,14 @@ public class KaraokeTrackRepository {
     }
 
     public static ImportResult importGeneratedPitch(MediaInput input, List<LyricsLine> lines) {
+        return importGeneratedPitch(input, lines, null);
+    }
+
+    public static ImportResult importGeneratedPitch(MediaInput input, List<LyricsLine> lines, KaraokePitchTrackGenerator.Progress progress) {
         if (input == null || input.isEmpty()) return ImportResult.fail("empty player");
         try {
             String signature = input.getSignature();
-            String text = KaraokePitchTrackGenerator.build(input, lines);
+            String text = KaraokePitchTrackGenerator.build(input, lines, progress);
             deleteGeneratedBoundIfAny(signature);
             delete(generatedFile(signature));
             return importText(generatedPitchFile(signature), "Generated experimental pitch scoring track", text);

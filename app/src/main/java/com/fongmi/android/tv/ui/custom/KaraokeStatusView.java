@@ -9,6 +9,7 @@ import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.Gravity;
 import android.view.View;
@@ -192,6 +193,8 @@ public class KaraokeStatusView extends LinearLayout {
         private KaraokeScoreSnapshot snapshot;
         private int historySize;
         private long lastHistoryPosition = -1;
+        private long smoothBasePosition = -1;
+        private long smoothBaseRealtime;
 
         private NoteTimelineView(Context context) {
             super(context);
@@ -201,6 +204,7 @@ public class KaraokeStatusView extends LinearLayout {
             if (this.track != track) clearHistory();
             this.track = track;
             this.snapshot = snapshot;
+            updateSmoothBase(snapshot);
             appendHistory(snapshot);
             invalidate();
         }
@@ -213,7 +217,7 @@ public class KaraokeStatusView extends LinearLayout {
             float right = getWidth() - dp(2);
             float top = dp(3);
             float bottom = getHeight() - dp(3);
-            long position = snapshot.getPositionMs();
+            long position = drawPosition();
             long start = Math.max(0, position - WINDOW_BEFORE_MS);
             long end = position + WINDOW_AFTER_MS;
             boolean pitchTrack = track.hasPitchRequiredNotes();
@@ -223,6 +227,7 @@ public class KaraokeStatusView extends LinearLayout {
             if (pitchTrack) drawHistory(canvas, left, right, top, bottom, start, end, centerPitch);
             drawCursor(canvas, left, right, top, bottom);
             if (pitchTrack) drawSungMarker(canvas, left, right, top, bottom, centerPitch);
+            postInvalidateOnAnimation();
         }
 
         private void drawBackground(Canvas canvas, float left, float right, float top, float bottom) {
@@ -238,7 +243,7 @@ public class KaraokeStatusView extends LinearLayout {
 
         private void drawNotes(Canvas canvas, float left, float right, float top, float bottom, long start, long end, int centerPitch) {
             List<KaraokeNote> notes = track.getNotes();
-            long position = snapshot.getPositionMs();
+            long position = drawPosition();
             for (KaraokeNote note : notes) {
                 if (!note.isScored() || note.getEndMs() < start || note.getStartMs() > end) continue;
                 float x1 = xOf(note.getStartMs(), start, end, left, right);
@@ -408,6 +413,36 @@ public class KaraokeStatusView extends LinearLayout {
         private void clearHistory() {
             historySize = 0;
             lastHistoryPosition = -1;
+            smoothBasePosition = -1;
+            smoothBaseRealtime = 0;
+        }
+
+        private void updateSmoothBase(KaraokeScoreSnapshot snapshot) {
+            if (snapshot == null) {
+                smoothBasePosition = -1;
+                smoothBaseRealtime = 0;
+                return;
+            }
+            long now = SystemClock.elapsedRealtime();
+            long position = snapshot.getPositionMs();
+            long current = drawPosition(now);
+            if (smoothBasePosition < 0 || Math.abs(position - current) > 1500 || position + 200 < smoothBasePosition) {
+                smoothBasePosition = position;
+            } else {
+                smoothBasePosition = Math.max(position, current);
+            }
+            smoothBaseRealtime = now;
+        }
+
+        private long drawPosition() {
+            return drawPosition(SystemClock.elapsedRealtime());
+        }
+
+        private long drawPosition(long now) {
+            if (snapshot == null) return 0;
+            if (smoothBasePosition < 0) return snapshot.getPositionMs();
+            long elapsed = Math.max(0, Math.min(1200, now - smoothBaseRealtime));
+            return smoothBasePosition + elapsed;
         }
 
         private float xOf(long timeMs, long start, long end, float left, float right) {

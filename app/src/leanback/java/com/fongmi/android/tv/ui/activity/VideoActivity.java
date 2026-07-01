@@ -68,6 +68,7 @@ import com.fongmi.android.tv.playback.PlaybackEventCollector;
 import com.fongmi.android.tv.player.PlayerHelper;
 import com.fongmi.android.tv.player.PlayerManager;
 import com.fongmi.android.tv.player.karaoke.KaraokeController;
+import com.fongmi.android.tv.player.karaoke.KaraokePitchTrackGenerator;
 import com.fongmi.android.tv.player.karaoke.KaraokeResult;
 import com.fongmi.android.tv.player.karaoke.KaraokeTrackRepository;
 import com.fongmi.android.tv.player.lyrics.LyricsController;
@@ -147,6 +148,8 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
     private boolean mKaraokeResultShown;
     private AlertDialog mLyricsResultDialog;
     private AlertDialog mKaraokePitchDialog;
+    private ProgressBar mKaraokePitchProgress;
+    private TextView mKaraokePitchMessage;
     private android.widget.ArrayAdapter<String> mLyricsResultAdapter;
     private List<LyricsResult> mLyricsSearchResults;
     private String mLyricsSearchKeyword;
@@ -1317,7 +1320,7 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
         }
         showKaraokePitchProgress();
         Task.execute(() -> {
-            KaraokeTrackRepository.ImportResult result = KaraokeTrackRepository.importGeneratedPitch(input, lines);
+            KaraokeTrackRepository.ImportResult result = KaraokeTrackRepository.importGeneratedPitch(input, lines, (percent, stage, elapsedMs, remainingMs) -> App.post(() -> updateKaraokePitchProgress(percent, stage, remainingMs)));
             App.post(() -> onKaraokePitchTrackGenerated(result));
         });
     }
@@ -1344,18 +1347,18 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
             return;
         }
         LinearLayout layout = new LinearLayout(this);
-        layout.setGravity(Gravity.CENTER_VERTICAL);
-        layout.setOrientation(LinearLayout.HORIZONTAL);
-        layout.setPadding(ResUtil.dp2px(24), ResUtil.dp2px(10), ResUtil.dp2px(24), ResUtil.dp2px(10));
-        ProgressBar progress = new ProgressBar(this);
-        progress.setIndeterminate(true);
-        layout.addView(progress, new LinearLayout.LayoutParams(ResUtil.dp2px(40), ResUtil.dp2px(40)));
-        TextView message = new TextView(this);
-        message.setText(R.string.player_karaoke_track_generating_pitch_message);
-        message.setTextSize(15);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
-        params.setMarginStart(ResUtil.dp2px(16));
-        layout.addView(message, params);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(ResUtil.dp2px(24), ResUtil.dp2px(12), ResUtil.dp2px(24), ResUtil.dp2px(10));
+        mKaraokePitchMessage = new TextView(this);
+        mKaraokePitchMessage.setText(R.string.player_karaoke_track_generating_pitch_message);
+        mKaraokePitchMessage.setTextSize(15);
+        layout.addView(mKaraokePitchMessage, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        mKaraokePitchProgress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        mKaraokePitchProgress.setIndeterminate(false);
+        mKaraokePitchProgress.setMax(100);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ResUtil.dp2px(6));
+        params.topMargin = ResUtil.dp2px(14);
+        layout.addView(mKaraokePitchProgress, params);
         mKaraokePitchDialog = new MaterialAlertDialogBuilder(this, R.style.ThemeOverlay_WebHTV_LightDialog)
                 .setTitle(R.string.player_karaoke_track_generating_pitch)
                 .setView(layout)
@@ -1363,15 +1366,41 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
                 .create();
         mKaraokePitchDialog.setCanceledOnTouchOutside(false);
         mKaraokePitchDialog.show();
+        updateKaraokePitchProgress(1, KaraokePitchTrackGenerator.STAGE_PREPARE, -1);
+    }
+
+    private void updateKaraokePitchProgress(int percent, int stage, long remainingMs) {
+        if (mKaraokePitchProgress == null || mKaraokePitchMessage == null) return;
+        int safePercent = Math.max(0, Math.min(100, percent));
+        mKaraokePitchProgress.setProgress(safePercent);
+        mKaraokePitchMessage.setText(getString(R.string.player_karaoke_track_generating_pitch_progress, safePercent, getKaraokePitchStageName(stage), formatKaraokePitchRemaining(remainingMs)));
+    }
+
+    private String getKaraokePitchStageName(int stage) {
+        if (stage == KaraokePitchTrackGenerator.STAGE_DECODE) return getString(R.string.player_karaoke_track_pitch_stage_decode);
+        if (stage == KaraokePitchTrackGenerator.STAGE_ANALYZE) return getString(R.string.player_karaoke_track_pitch_stage_analyze);
+        if (stage == KaraokePitchTrackGenerator.STAGE_WRITE) return getString(R.string.player_karaoke_track_pitch_stage_write);
+        if (stage == KaraokePitchTrackGenerator.STAGE_FINISH) return getString(R.string.player_karaoke_track_pitch_stage_finish);
+        return getString(R.string.player_karaoke_track_pitch_stage_prepare);
+    }
+
+    private String formatKaraokePitchRemaining(long remainingMs) {
+        if (remainingMs <= 0) return getString(R.string.player_karaoke_track_pitch_remaining_unknown);
+        long seconds = Math.max(1, Math.round(remainingMs / 1000.0));
+        if (seconds < 60) return getString(R.string.player_karaoke_track_pitch_remaining_seconds, seconds);
+        return getString(R.string.player_karaoke_track_pitch_remaining_minutes, seconds / 60, seconds % 60);
     }
 
     private void dismissKaraokePitchProgress() {
-        if (mKaraokePitchDialog == null) return;
-        try {
-            if (mKaraokePitchDialog.isShowing()) mKaraokePitchDialog.dismiss();
-        } catch (Exception ignored) {
+        if (mKaraokePitchDialog != null) {
+            try {
+                if (mKaraokePitchDialog.isShowing()) mKaraokePitchDialog.dismiss();
+            } catch (Exception ignored) {
+            }
         }
         mKaraokePitchDialog = null;
+        mKaraokePitchProgress = null;
+        mKaraokePitchMessage = null;
     }
 
     private void showKaraokePitchResult(int title, String message) {
