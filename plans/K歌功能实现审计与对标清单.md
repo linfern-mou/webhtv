@@ -15,11 +15,13 @@
 最需要继续补强的不是再堆重模型，而是这些工程细节：
 
 1. 生成音高谱的质量反馈、缓存版本、重新生成入口和合并强度选择。
-2. 麦克风延迟校准向导和设备兼容提示。
-3. 谱源登录态/导入体验、搜索结果可比对预览、选择后不立即关闭。
-4. MIDI/KAR 导入的轨道选择或候选提示。
-5. 自动化回归样本：解析、评分、生成、UI 刷新都需要固定样本验证。
-6. TV 端手机当麦克风属于未来可做，但不应混入当前播放器内置轻量实现。
+2. 轻量 onset snapping，减少歌词边界和真实起唱之间的偏差。
+3. Player-note 分段，让用户实际唱出的音符可复盘、可做句尾评价。
+4. 麦克风延迟校准向导、环境预设和设备兼容提示。
+5. 谱源登录态/导入体验、并发搜索、失败源可见、搜索结果可比对预览。
+6. MIDI/KAR 导入的轨道选择或候选提示。
+7. 自动化回归样本：解析、评分、生成、UI 刷新都需要固定样本验证。
+8. TV 端手机当麦克风属于未来可做，但不应混入当前播放器内置轻量实现。
 
 ## 当前实现链路
 
@@ -57,6 +59,79 @@
 | UltraSinger | Demucs/Whisper/音高提取生成 UltraStar/MIDI，适合离线制谱 | 不进入端侧默认链路，仅作离线参考 | 不建议端侧默认 |
 | AutoTranscriber | CQT/pYIN/CREPE/多音高估计、最小时长、合并、MIDI 输出 | 已借鉴最小时长、合并、pitch run 思路；未集成 Python/重模型 | 部分借鉴 |
 | TarsosDSP / aubio | Android/Java 侧常见实时 pitch/onset 算法，YIN/MPM/DyWa 可选 | 当前自研 YIN，未引入库 | 当前可接受 |
+
+## 第二轮证据级对标补充
+
+这一轮按源码实现逐项核对，避免只停留在 README 或概念层。结论是：WebHTV 当前实现已经覆盖轻量 K歌的主链路，但在“专业评分可解释性、自动制谱准确性、谱源登录态、调试可观测性”上仍明显弱于成熟 K歌/制谱项目。
+
+### 1. 评分模型与用户唱段
+
+| 对标点 | 参考实现证据 | WebHTV 当前实现 | 结论 |
+| --- | --- | --- | --- |
+| 八度折叠与容差 | AllKaraoke `calc-distance.tsx` 用 `(((note % 12) - (target % 12) + 18) % 12) - 6` 取最近音级差；`ultrastar-score` README 也明确 octave-fold 到 6 semitone 内 | `KaraokePitch.semitoneDistance` + `KaraokeScoringConfig.ignoreOctave=true`，默认容差 2 半音 | 已对齐核心规则 |
+| 计分单位 | `ultrastar-score/src/ultrastar_score/scoring.py` 按 USDX 9000 note + 1000 line bonus，输出 per-line/per-note；AllKaraoke `calculate-score.ts` 以 3500000 点和 note type multiplier 累加 | `KaraokeScorer` 以播放时间片累计 0-100 分、逐句统计，不复刻 USDX 10000 分模型 | 娱乐评分达标，专业兼容不足 |
+| 玩家唱段 | AllKaraoke `append-frequency-to-player-notes.ts` 把频率记录合并成 `PlayerNote`，100ms 断唱容忍，保存 preciseDistance、perfect、vibrato | `KaraokeScorer` 只保留时间片累计和短 pitch history，不持久化用户唱出的 note segments | 缺复盘、句尾细判和更稳定评分基础 |
+| Rap/Freestyle/Golden | `ultrastar-score/parser.py`：freestyle factor 0，normal/rap 1，golden/rapgolden 2；AllKaraoke 对 freestyle/rap/star/perfect/vibrato 分别加权 | `KaraokeNoteType` 支持类型和权重，UI 有 golden glow | 基础支持，但和 USDX/AllKaraoke 权重不是完全一致 |
+| Perfect/Vibrato | AllKaraoke `detect-vibrato.ts` 基于频率记录变化；`calculate-score.ts` 对 perfect/vibrato 加分 | `KaraokeScorer.detectVibrato` 用 1.3s 窗口、方向变化、range 和间隔稳定性判断 | 已实现，但阈值未用公开样本校准 |
+
+### 2. 麦克风、串音与环境适配
+
+| 对标点 | 参考实现证据 | WebHTV 当前实现 | 结论 |
+| --- | --- | --- | --- |
+| 录音源/系统 DSP | Frank Karaoke `docs/scoring.md` 强调 Samsung AGC/AEC/NS 会压低或破坏音高；AllKaraoke `mic-input.tsx` 显式 `echoCancellation:false` | `KaraokeMicRecorder` 优先 `VOICE_RECOGNITION/MIC/DEFAULT`，并尝试关闭 AEC/NS/AGC | 已借鉴，仍需更多设备日志 |
+| 人声频段过滤 | Frank Karaoke `scoring_session.dart` 使用 200-3500Hz bandpass | `KaraokeMicRecorder.VoiceBandpassFilter` 200-3500Hz；生成器分析链路 80-3500Hz | 已实现 |
+| 动态底噪 | Frank Karaoke 用 25th percentile RMS baseline，voice 要高于 baseline 1.5x | `AdaptiveVoiceGate` 维护 raw/filtered floor，warmup 后提高门限 | 部分对齐，算法不同 |
+| 环境预设 | Frank Karaoke `audio_preset.dart` 有 externalMic / roomMic / partyMode，分别设容差和 noise gate | WebHTV 只有难度容差和 mic delay，没有外接麦/房间/派对模式 | 缺失，适合 P1 |
+| Pitch oracle 抗串音 | Frank Karaoke `pitch_oracle.dart` 下载/解码参考音频，生成 pitch timeline，用 pitch class 判断 speaker bleed | WebHTV 未做 reference pitch oracle；当前只靠 bandpass + gate + confidence | 高级抗串音缺失，不宜作为 P0 |
+
+### 3. 无谱娱乐评分
+
+| 对标点 | 参考实现证据 | WebHTV 当前实现 | 结论 |
+| --- | --- | --- | --- |
+| 无谱也可玩 | Frank Karaoke 明确无 reference 时用 confidence、clean semitone snap、musicality/range/interval 做 voice-only score | `KaraokeFreeSingScorer` 用参与度、置信度、音量、稳定度、snap、musicality、phrase 覆盖度 | 已基本对齐 |
+| Live 与 final 分离 | Frank Karaoke live score 用 EMA alpha 0.15，final score 用全程累计 | WebHTV 实时显示和最终结果来自同一个累计 snapshot | 可用，但实时反馈不如 EMA 柔和 |
+| 说话/聊天判定 | Frank Karaoke 低 confidence、低 musicality 会被过滤或低分 | WebHTV 说话可能因音高不稳/置信度不足得到 0 或低分 | 这是合理结果，但 UI 可提示“未形成演唱” |
+| 娱乐模式多样性 | Frank Karaoke 有 Pitch Match / Contour / Intervals / Streak 四种玩法 | WebHTV 只有自由唱、节奏谱、音准谱三种模式 | 当前够用，玩法不丰富 |
+
+### 4. 自动生成音高谱
+
+| 对标点 | 参考实现证据 | WebHTV 当前实现 | 结论 |
+| --- | --- | --- | --- |
+| 输入音频 | UltraSinger `UltraSinger.py` 默认走 Demucs 人声分离、Whisper/WhisperX、SwiftF0；UltrastarCreatorTool 使用 vocal track 做 pYIN/onset | `KaraokePitchTrackGenerator` 直接解码当前播放音频/混音，用 YIN 分析 | 端侧轻量可接受，但准确性上限低 |
+| Pitch 算法 | UltrastarCreatorTool `pitch_detection.py` 用 librosa pYIN、22050Hz、hop 512、confidence >=0.4；UltraSinger `pitcher.py` 用 SwiftF0、confidence_threshold 0.9；TarsosDSP 提供 YIN/FastYIN/MPM/DynamicWavelet | WebHTV 用自研 YIN，2048 frame / 1024 hop，生成链路 threshold 0.12、minConfidence 0.08，并做候选路径 | 轻量实现完成；可评估 MPM/ptAKF，但不建议默认重模型 |
+| 片段与短音合并 | UltrastarCreatorTool `get_pitch_subsegments` 有 min_duration 0.24s、run merge、segment budget；AutoTranscriber 有 min_note_duration、merge_gap、outlier removal | WebHTV 有 `MIN_NOTE_MS`、`TINY_RUN_MS`、`MERGE_GAP_MS`、`mergeNotes/absorbTinyRuns/smoothOutliers/smoothLineContour` | 已借鉴，但参数需样本校准 |
+| Onset snapping | UltrastarCreatorTool `onset_snapping.py` 用 mel onset strength、hop 256、backtrack、80ms 窗口修正 syllable start | WebHTV 未做 onset snapping，只依赖歌词/逐字时间 | 缺失，是改善“不贴声”的关键轻量项 |
+| BPM/GAP/网格 | UltraSinger `ultrastar_writer.py` 计算真实 BPM/GAP；UltrastarCreatorTool 有 BPM/GAP 校准和误差报告 | WebHTV 内部生成用 `BPM=6000`、`BEAT_MS=10`、`GAP=0`，适合内部缓存但不像标准谱 | 内部可用，导出/共享不专业 |
+| 质量报告 | UltrastarCreatorTool `reference_comparison.py` 输出 mean/median/max error、within 100/200/500ms、drift | WebHTV 只有进度和成功/失败，生成谱没有有效帧、估计段、合并段、质量等级 | 缺失，P0 |
+| 人工修正 | UltrastarCreatorTool Step4 editor 有 piano roll、waveform、pitch trace、右键加 note、split/merge/delete/resize、undo/redo | WebHTV 没有编辑器 | 不建议做完整编辑器，可先做重生成/导入/整体偏移 |
+
+### 5. 谱源、登录态与搜索体验
+
+| 对标点 | 参考实现证据 | WebHTV 当前实现 | 结论 |
+| --- | --- | --- | --- |
+| USDB 登录态 | UltraStar-CLI `api/usdb/auth.ts` 登录后提取 `Set-Cookie`，后续 search/detail/lyrics/youtube 都带 Cookie；UI 维护 session | WebHTV 支持 WebView cookie 和 URL `@Cookie=`，没有专用登录/保存入口 | 能用但交互粗糙 |
+| USDB 搜索/歌词 | UltraStar-CLI `api/usdb/search.ts` POST `?link=list`，`api/usdb/lyrics.ts` 抓 `view.php` 并解析 `giveinfo0` | WebHTV `KaraokeUsdbProvider` POST `?link=list`，RSS fallback；`KaraokeTrackRepository.getUsdbTrackText` 解析 detail + view.php `giveinfo0` | 核心路径一致 |
+| USDB 离线工具 | USDB-fetcher 是“用户已有 .txt 后下载媒体并改写路径”，不是公开谱源 API | WebHTV 不下载媒体，只导入评分谱文本 | 范围合理 |
+| UltraStar-ES | Web 页面匿名搜索可抓列表，下载可能登录 | WebHTV `KaraokeUltraStarEsProvider` 抓搜索页和 `/canciones/descargar/txt/` 链接，标记 login required | 已接入但脆弱 |
+| GitHub 谱库 | 公开 UltraStar songs 仓库适合 raw 下载，但要受 GitHub API/rate/license 约束 | WebHTV `KaraokeGithubTrackProvider` + 自定义 GitHub 源 | 已接入，需更好排序和 license 提示 |
+| 并发与缓存 | 最佳体验应 provider 并发、结果持续展示、失败源可见 | `KaraokeTrackRepository.search` 当前串行 provider，10 分钟内存缓存，失败静默，结果点击后 UI 仍偏一次性选择 | 体验缺口明确 |
+
+### 6. 实时显示、结果面板与娱乐性
+
+| 对标点 | 参考实现证据 | WebHTV 当前实现 | 结论 |
+| --- | --- | --- | --- |
+| 固定音高坐标 | AllKaraoke `calculate-data.ts` 基于当前 section max/min pitch 和 padding 计算固定 pitchStepHeight；K歌游戏通常不随游标临时重缩放 | `KaraokeStatusView.pitchScaleFrom(track)` 用整首 scored pitch min/max + padding，固定坐标 | 已修复到正确方向 |
+| 用户轨迹 | AllKaraoke 绘制 player frequency trace；Frank Karaoke overlay 实时 pitch trail | WebHTV `drawHistory/drawSungMarker` 显示历史轨迹和当前点 | 已实现 |
+| 命中进度 | AllKaraoke 在当前音符上画玩家唱段和距离；WebHTV 画当前音符 progress fill | 已实现，但没有 player note 分段，所以轨迹复盘更弱 | 部分对齐 |
+| 娱乐反馈 | AllKaraoke 有 perfect/vibrato 粒子和 combo；Frank Karaoke 有 streak | WebHTV 有 hit/perfect/vibrato 脉冲、sparkles、combo 文案 | 基础实现，可继续做句尾评价 |
+| 结果面板 | K歌类产品展示总分、等级、多维统计、最高分/历史 | WebHTV 有总分、等级、命中、覆盖、perfect/vibrato、逐句统计；无历史最高分 | 中高完成度，历史记录缺失 |
+
+### 7. 结论修正
+
+1. 不能说“已经逐项深度搜索全部完成过”。前一版文档覆盖面够，但证据级细节不足；本节补齐了关键实现证据。
+2. 当前最值得继续做的不是引入大模型，而是：生成质量报告、生成缓存版本、onset snapping、谱源结果页保留/并发搜索、麦克风环境预设、player-note 分段、基础单测和 K歌 debug 日志。
+3. 当前最不适合默认做的是端侧 Demucs/WhisperX/CREPE/复杂复调转 MIDI。它们在 UltraSinger/UltrastarCreatorTool 里是有效工具链，但不适合手机/电视播放器默认运行。
+4. 如果继续优化自动音高谱，优先顺序应是：先加质量报告和版本失效，再做轻量 onset snapping，然后做样本集调参；最后再评估 TarsosDSP MPM 或 ptAKF/NDK。
 
 ## Checklist
 
@@ -198,8 +273,8 @@
 
 1. 生成谱缓存版本：在生成的 `.generated-pitch.txt` 注释里写入 generator version，算法升级后自动失效旧缓存。
 2. 生成质量报告：生成后显示有效 pitch 帧比例、估计/补全比例、短段合并数量、质量等级。
-3. 谱源结果页保留：点击导入后不要立刻丢失结果列表，允许切换下一个结果。
-4. MIDI 轨道候选：导入 MIDI/KAR 时展示候选轨道数量、音域、音符数，允许用户改选。
+3. 谱源搜索并发和失败源可见：不要串行等完一个源再查下一个源，结果页要显示哪些源失败。
+4. 谱源结果页保留：点击导入后不要立刻丢失结果列表，允许切换下一个结果。
 5. K歌 debug 日志：打印 mode、track source、note count、pitchRequired、mic status、generation quality，方便 ADB 排查。
 6. 基础单测：`UltraStarParser`、`KaraokeScorer`、`KaraokeGeneratedTrackBuilder`、`KaraokePitchTrackGenerator` 的核心纯逻辑。
 
@@ -208,9 +283,11 @@
 1. 麦克风校准向导：短提示用户唱/拍一声，估计输入延迟和底噪。
 2. 生成强度选项：实验音高谱提供“平滑优先/细节优先”，默认平滑。
 3. 轻量 onset snapping：用能量/谱通量修正音符起止，减少歌词边界不准。
-4. 句尾反馈：每句结束给出“稳定/偏高/偏低/继续唱”的短反馈。
-5. 本地最高分：按媒体 signature 保存最高分和最近一次结果。
-6. TV 谱源操作优化：更大列表、来源 tab、扫码导入 URL/Cookie。
+4. Player-note 分段：把用户唱出的连续命中/偏高/偏低片段保存下来，用于句尾反馈和结果复盘。
+5. MIDI 轨道候选：导入 MIDI/KAR 时展示候选轨道数量、音域、音符数，允许用户改选。
+6. 句尾反馈：每句结束给出“稳定/偏高/偏低/继续唱”的短反馈。
+7. 本地最高分：按媒体 signature 保存最高分和最近一次结果。
+8. TV 谱源操作优化：更大列表、来源 tab、扫码导入 URL/Cookie。
 
 ### P2：未来可做
 
@@ -274,4 +351,3 @@
 - [ ] 增加生成强度选项，默认平滑。
 - [ ] 评估轻量 onset snapping，只用于音符边界，不引入重库。
 - [ ] 设计手机当 TV 麦克风的独立方案，不混入当前分支默认功能。
-
