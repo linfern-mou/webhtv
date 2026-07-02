@@ -87,9 +87,9 @@ public class LyricsOverlayView extends FrameLayout {
         if (this.audioStageMode == audioStageMode) return;
         this.audioStageMode = audioStageMode;
         LayoutParams params = (LayoutParams) box.getLayoutParams();
-        params.gravity = audioStageMode ? Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL : Gravity.CENTER;
+        params.gravity = audioStageMode ? Gravity.TOP | Gravity.CENTER_HORIZONTAL : Gravity.CENTER;
         box.setLayoutParams(params);
-        box.setPadding(dp(18), dp(10), dp(18), dp(audioStageMode ? 34 : 10));
+        box.setPadding(dp(18), dp(10), dp(18), dp(10));
         applyStyle();
     }
 

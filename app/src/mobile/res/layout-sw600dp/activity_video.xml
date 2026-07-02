@@ -166,7 +166,7 @@
                             android:id="@+id/audioRepeatAction"
                             android:layout_width="36dp"
                             android:layout_height="36dp"
-                            android:background="@drawable/shape_audio_action_button"
+                            android:background="?attr/selectableItemBackgroundBorderless"
                             android:padding="8dp"
                             android:scaleType="center"
                             android:src="@drawable/ic_audio_repeat" />
@@ -206,7 +206,7 @@
                             android:id="@+id/audioQueueAction"
                             android:layout_width="36dp"
                             android:layout_height="36dp"
-                            android:background="@drawable/shape_audio_action_button"
+                            android:background="?attr/selectableItemBackgroundBorderless"
                             android:padding="8dp"
                             android:scaleType="center"
                             android:src="@drawable/ic_audio_queue" />

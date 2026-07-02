@@ -2507,7 +2507,9 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.audioPrev.setAlpha(hasPrev ? 1f : 0.35f);
         mBinding.audioNext.setEnabled(hasNext);
         mBinding.audioNext.setAlpha(hasNext ? 1f : 0.35f);
-        mBinding.audioQueueAction.setVisibility(View.VISIBLE);
+        boolean hasQueue = getEpisodeCount() > 1;
+        mBinding.audioQueueAction.setEnabled(hasQueue);
+        mBinding.audioQueueAction.setAlpha(hasQueue ? 1f : 0.25f);
         setAudioRepeatSelected(service() != null && player().isRepeatOne());
         mBinding.audioKaraokeAction.setSelected(PlayerSetting.isKaraokeMode());
         mBinding.audioKeepAction.setSelected(Keep.find(getHistoryKey()) != null);

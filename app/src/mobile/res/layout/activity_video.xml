@@ -128,7 +128,7 @@
                         android:gravity="center_horizontal"
                         android:orientation="vertical"
                         android:paddingStart="24dp"
-                        android:paddingTop="22dp"
+                        android:paddingTop="18dp"
                         android:paddingEnd="24dp"
                         android:paddingBottom="14dp"
                         android:visibility="gone"
@@ -136,8 +136,8 @@
 
                         <FrameLayout
                             android:id="@+id/audioDisc"
-                            android:layout_width="196dp"
-                            android:layout_height="196dp"
+                            android:layout_width="184dp"
+                            android:layout_height="184dp"
                             android:background="@drawable/shape_audio_disc_back"
                             android:padding="12dp">
 
@@ -245,7 +245,7 @@
                             android:id="@+id/audioLyrics"
                             android:layout_width="match_parent"
                             android:layout_height="0dp"
-                            android:layout_marginTop="8dp"
+                            android:layout_marginTop="14dp"
                             android:layout_weight="1"
                             android:minHeight="110dp" />
 
@@ -281,7 +281,7 @@
                                     android:id="@+id/audioRepeatAction"
                                     android:layout_width="42dp"
                                     android:layout_height="42dp"
-                                    android:background="@drawable/shape_audio_action_button"
+                                    android:background="?attr/selectableItemBackgroundBorderless"
                                     android:padding="10dp"
                                     android:scaleType="center"
                                     android:src="@drawable/ic_audio_repeat" />
@@ -321,7 +321,7 @@
                                     android:id="@+id/audioQueueAction"
                                     android:layout_width="42dp"
                                     android:layout_height="42dp"
-                                    android:background="@drawable/shape_audio_action_button"
+                                    android:background="?attr/selectableItemBackgroundBorderless"
                                     android:padding="10dp"
                                     android:scaleType="center"
                                     android:src="@drawable/ic_audio_queue" />
