@@ -445,6 +445,11 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     @Override
+    protected void onControllerReady(Player controller) {
+        mBinding.audioSeek.setPlayer(controller);
+    }
+
+    @Override
     protected void onPlayerRebuilt() {
         setPlayerKernel();
         setDecode();
@@ -569,6 +574,19 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.control.action.opening.setOnClickListener(view -> onOpening());
         mBinding.control.action.danmaku.setOnClickListener(view -> onDanmaku());
         mBinding.control.action.episodes.setOnClickListener(view -> onEpisodes());
+        mBinding.audioPlay.setOnClickListener(view -> checkPlay());
+        mBinding.audioNext.setOnClickListener(view -> checkNext());
+        mBinding.audioPrev.setOnClickListener(view -> checkPrev());
+        mBinding.audioLyricsAction.setOnClickListener(view -> onLyricsSearch());
+        mBinding.audioQueueAction.setOnClickListener(view -> onEpisodes());
+        mBinding.audioCastAction.setOnClickListener(view -> onCast());
+        mBinding.audioKeepAction.setOnClickListener(view -> onKeep());
+        mBinding.audioSettingAction.setOnClickListener(view -> onSetting());
+        mBinding.audioKaraokeAction.setOnClickListener(view -> onKaraokeMode());
+        mBinding.audioKaraokeAction.setOnLongClickListener(view -> onKaraokeTrackLongClick());
+        mBinding.audioTrackAction.setOnClickListener(view -> onTrack(C.TRACK_TYPE_AUDIO));
+        mBinding.audioSubtitleAction.setOnClickListener(view -> onTrack(C.TRACK_TYPE_TEXT));
+        mBinding.audioInfoAction.setOnClickListener(view -> onInfo());
         mBinding.control.action.text.setOnLongClickListener(view -> onTextLong());
         mBinding.control.action.speed.setOnLongClickListener(view -> onSpeedLong());
         mBinding.control.action.reset.setOnLongClickListener(view -> onResetToggle());
@@ -1242,6 +1260,11 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         hideControl();
     }
 
+    private void onTrack(int type) {
+        TrackDialog.create().type(type).player(player()).show(this);
+        hideControl();
+    }
+
     @Override
     public void onTrackPanel(int type) {
         TrackDialog.create().type(type).player(player()).show(this);
@@ -1545,6 +1568,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     private void setKaraokeActionState() {
         if (mBinding.control.action.karaoke != null) mBinding.control.action.karaoke.setSelected(PlayerSetting.isKaraokeMode());
+        if (mBinding.audioKaraokeAction != null) mBinding.audioKaraokeAction.setSelected(PlayerSetting.isKaraokeMode());
     }
 
     private void applyKaraokeTrackChange(boolean enableMode) {
@@ -1908,6 +1932,11 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     private void showControl() {
         if (service() == null || isInPictureInPictureMode()) return;
+        if (mAudioStageVisible && !isFullscreen()) {
+            hideWidgetOverlay();
+            hideControl();
+            return;
+        }
         hideWidgetOverlay();
         mBinding.control.danmaku.setVisibility(isLock() || !player().haveDanmaku() ? View.GONE : View.VISIBLE);
         mBinding.control.setting.setVisibility(View.GONE);
@@ -2189,7 +2218,9 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void checkKeepImg() {
-        mBinding.control.keep.setImageResource(Keep.find(getHistoryKey()) == null ? R.drawable.ic_control_keep_off : R.drawable.ic_control_keep_on);
+        boolean kept = Keep.find(getHistoryKey()) != null;
+        mBinding.control.keep.setImageResource(kept ? R.drawable.ic_control_keep_on : R.drawable.ic_control_keep_off);
+        mBinding.audioKeepAction.setSelected(kept);
     }
 
     private void checkLockImg() {
@@ -2311,6 +2342,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private void setAudioStageVisible(boolean visible) {
         if (mAudioStageVisible == visible) {
             updateAudioStageText();
+            updateAudioStageControls();
             return;
         }
         mAudioStageVisible = visible;
@@ -2320,6 +2352,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         syncKaraokeStageVisibility();
         applyAudioStageLayout(visible);
         updateAudioStageText();
+        updateAudioStageControls();
     }
 
     private void syncKaraokeStageVisibility() {
@@ -2336,7 +2369,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         if (!visible) {
             if (mFrameHeight > 0) mFrameParams.height = mFrameHeight;
         } else if (isPort()) {
-            mFrameParams.height = ResUtil.dp2px(112);
+            mFrameParams.height = 0;
         } else {
             mFrameParams.height = mFrameHeight;
         }
@@ -2353,6 +2386,22 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.audioSubtitle.setText(subtitle);
         mBinding.audioSubtitle.setVisibility(TextUtils.isEmpty(subtitle) ? View.GONE : View.VISIBLE);
         mBinding.audioBadgeLyrics.setText(PlayerSetting.isKaraokeMode() ? getString(R.string.player_karaoke_mode) : getString(R.string.player_audio_badge_lyrics));
+    }
+
+    private void updateAudioStageControls() {
+        if (mBinding == null) return;
+        int episodeVisibility = getEpisodeCount() > 1 ? View.VISIBLE : View.GONE;
+        mBinding.audioPrev.setVisibility(episodeVisibility);
+        mBinding.audioNext.setVisibility(episodeVisibility);
+        mBinding.audioQueueAction.setVisibility(episodeVisibility);
+        boolean hasAudioTrack = service() != null && player().haveTrack(C.TRACK_TYPE_AUDIO);
+        boolean hasTextTrack = service() != null && (player().haveTrack(C.TRACK_TYPE_TEXT) || player().isVod());
+        mBinding.audioTrackAction.setVisibility(hasAudioTrack ? View.VISIBLE : View.GONE);
+        mBinding.audioSubtitleAction.setVisibility(hasTextTrack ? View.VISIBLE : View.GONE);
+        mBinding.audioInfoAction.setVisibility(service() == null || player().isEmpty() ? View.GONE : View.VISIBLE);
+        mBinding.audioKaraokeAction.setSelected(PlayerSetting.isKaraokeMode());
+        mBinding.audioKeepAction.setSelected(Keep.find(getHistoryKey()) != null);
+        checkAudioPlayImg(service() != null && player().isPlaying());
     }
 
     private String getAudioStageTitle() {
@@ -2682,10 +2731,16 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         if (isPlaying) {
             if (!suppressPiPForAudio()) mPiP.update(this, true);
             mBinding.control.play.setImageResource(androidx.media3.ui.R.drawable.exo_icon_pause);
+            checkAudioPlayImg(true);
         } else if (isPaused()) {
             if (!suppressPiPForAudio()) mPiP.update(this, false);
             mBinding.control.play.setImageResource(androidx.media3.ui.R.drawable.exo_icon_play);
+            checkAudioPlayImg(false);
         }
+    }
+
+    private void checkAudioPlayImg(boolean isPlaying) {
+        mBinding.audioPlay.setImageResource(isPlaying ? androidx.media3.ui.R.drawable.exo_icon_pause : androidx.media3.ui.R.drawable.exo_icon_play);
     }
 
     @Override
@@ -2780,6 +2835,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     private void updateVideoHeight() {
         if (isLand() || isFullscreen() || isInPictureInPictureMode()) return;
+        if (mAudioStageVisible) return;
         if (mFrameHeight <= 0 || mFrameParams.height == mFrameHeight) return;
         mFrameParams.height = mFrameHeight;
         mBinding.video.setLayoutParams(mFrameParams);
@@ -2799,6 +2855,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.control.action.audio.setVisibility(player().haveTrack(C.TRACK_TYPE_AUDIO) ? View.VISIBLE : View.GONE);
         mBinding.control.action.video.setVisibility(player().haveTrack(C.TRACK_TYPE_VIDEO) ? View.VISIBLE : View.GONE);
         applyActionButtonVisibility();
+        updateAudioStageControls();
     }
 
     private void setTitleVisible() {

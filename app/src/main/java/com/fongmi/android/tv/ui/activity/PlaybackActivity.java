@@ -171,6 +171,9 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
     protected void onPlayerRebuilt() {
     }
 
+    protected void onControllerReady(Player controller) {
+    }
+
     protected void onError(String msg) {
     }
 
@@ -260,6 +263,7 @@ public abstract class PlaybackActivity extends BaseActivity implements MediaCont
         try {
             mController = mControllerFuture.get();
             getSeekView().setPlayer(mController);
+            onControllerReady(mController);
             mController.addListener(this);
         } catch (Exception ignored) {
         }
