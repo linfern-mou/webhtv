@@ -1218,11 +1218,17 @@
 
     <string-array name="select_audio_background">
         <item>Artwork glow</item>
+        <item>Dark neon</item>
+        <item>Black gold</item>
         <item>Peach sunset</item>
         <item>Sea mint</item>
         <item>Aurora candy</item>
         <item>Sky citrus</item>
         <item>Rose soda</item>
+        <item>Cyber pop</item>
+        <item>Forest morning</item>
+        <item>Lemon coast</item>
+        <item>Violet dusk</item>
     </string-array>
 
     <string-array name="select_track">

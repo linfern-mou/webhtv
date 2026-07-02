@@ -1194,11 +1194,17 @@
 
     <string-array name="select_audio_background">
         <item>封面彩光</item>
+        <item>暗夜霓虹</item>
+        <item>黑金舞台</item>
         <item>蜜桃日落</item>
         <item>海鹽薄荷</item>
         <item>極光糖果</item>
         <item>晴空藍橙</item>
         <item>玫瑰汽水</item>
+        <item>賽博藍粉</item>
+        <item>森林晨光</item>
+        <item>檸檬海岸</item>
+        <item>紫霞橙光</item>
     </string-array>
 
     <string-array name="select_track">
