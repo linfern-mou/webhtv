@@ -180,9 +180,9 @@ public class AudioPlayerBackgroundDrawable extends Drawable {
     private void drawRandom(Canvas canvas, int w, int h) {
         int bg = backgroundSeed == 0 ? 0x5A17B3 : backgroundSeed;
         int deco = decorationSeed == 0 ? bg : decorationSeed;
-        int start = randomColor(bg, 0, 0.48f, 0.95f);
-        int center = randomColor(bg, 1, 0.42f, 0.98f);
-        int end = randomColor(bg, 2, 0.38f, 0.9f);
+        int start = randomBackgroundColor(bg, 0);
+        int center = randomBackgroundColor(bg, 1);
+        int end = randomBackgroundColor(bg, 2);
         boolean reverse = (bg & 1) == 0;
         fillLinear(canvas, w, h, start, center, end, reverse);
         if (!decorated) return;
@@ -546,6 +546,47 @@ public class AudioPlayerBackgroundDrawable extends Drawable {
         float sat = satMin + (((mixed >>> 9) & 0xFF) / 255f) * (0.92f - satMin);
         float val = valMin + (((mixed >>> 17) & 0xFF) / 255f) * (1f - valMin);
         return Color.HSVToColor(new float[]{hue, clamp(sat, 0f, 1f), clamp(val, 0f, 1f)});
+    }
+
+    private int randomBackgroundColor(int seed, int slot) {
+        int mode = Math.floorMod(mixSeed(seed + 0x51ED270B), 8);
+        int mixed = mixSeed(seed + slot * 0x9E3779B9);
+        float hue = Math.floorMod(mixed, 360);
+        float satNoise = ((mixed >>> 9) & 0xFF) / 255f;
+        float valNoise = ((mixed >>> 17) & 0xFF) / 255f;
+        switch (mode) {
+            case 0 -> {
+                return Color.HSVToColor(new float[]{hue, 0.48f + satNoise * 0.44f, 0.88f + valNoise * 0.12f});
+            }
+            case 1 -> {
+                return Color.HSVToColor(new float[]{hue, 0.28f + satNoise * 0.42f, 0.78f + valNoise * 0.2f});
+            }
+            case 2 -> {
+                float deepHue = (210f + slot * 24f + satNoise * 54f) % 360f;
+                return Color.HSVToColor(new float[]{deepHue, 0.56f + satNoise * 0.34f, slot == 1 ? 0.22f + valNoise * 0.24f : 0.08f + valNoise * 0.18f});
+            }
+            case 3 -> {
+                float goldHue = slot == 1 ? 42f + satNoise * 18f : 250f + satNoise * 42f;
+                float value = slot == 1 ? 0.34f + valNoise * 0.24f : 0.06f + valNoise * 0.12f;
+                return Color.HSVToColor(new float[]{goldHue % 360f, 0.5f + satNoise * 0.38f, value});
+            }
+            case 4 -> {
+                float wineHue = 322f + slot * 16f + satNoise * 24f;
+                return Color.HSVToColor(new float[]{wineHue % 360f, 0.48f + satNoise * 0.4f, 0.1f + valNoise * (slot == 1 ? 0.3f : 0.18f)});
+            }
+            case 5 -> {
+                float forestHue = 126f + slot * 20f + satNoise * 42f;
+                return Color.HSVToColor(new float[]{forestHue % 360f, 0.46f + satNoise * 0.38f, 0.1f + valNoise * (slot == 1 ? 0.28f : 0.16f)});
+            }
+            case 6 -> {
+                float emberHue = 12f + slot * 18f + satNoise * 34f;
+                return Color.HSVToColor(new float[]{emberHue % 360f, 0.5f + satNoise * 0.38f, 0.12f + valNoise * (slot == 1 ? 0.32f : 0.18f)});
+            }
+            default -> {
+                float nightHue = 188f + slot * 28f + satNoise * 64f;
+                return Color.HSVToColor(new float[]{nightHue % 360f, 0.38f + satNoise * 0.42f, 0.14f + valNoise * (slot == 1 ? 0.34f : 0.22f)});
+            }
+        }
     }
 
     private float randomRange(int seed, int slot, float min, float max) {
