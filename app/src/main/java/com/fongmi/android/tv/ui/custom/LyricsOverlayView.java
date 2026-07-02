@@ -119,7 +119,6 @@ public class LyricsOverlayView extends FrameLayout {
         this.lines = lines == null ? Collections.emptyList() : lines;
         this.index = -1;
         setVisibility(this.lines.isEmpty() || suppressed ? hiddenVisibility() : VISIBLE);
-        if (!this.lines.isEmpty()) update(0);
     }
 
     public void update(long positionMs) {

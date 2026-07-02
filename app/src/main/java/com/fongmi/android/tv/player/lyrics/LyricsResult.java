@@ -86,6 +86,7 @@ public class LyricsResult {
 
     public List<LyricsLine> getLines(long fallbackDurationMs) {
         if (!isValid()) return Collections.emptyList();
-        return synced ? LyricsParser.parseTimed(lyrics) : LyricsParser.parsePlain(lyrics, fallbackDurationMs);
+        List<LyricsLine> lines = synced ? LyricsParser.parseTimed(lyrics) : LyricsParser.parsePlain(lyrics, fallbackDurationMs);
+        return LyricsParser.filterMetadataLines(lines, trackName, artistName);
     }
 }

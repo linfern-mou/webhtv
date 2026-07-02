@@ -137,6 +137,21 @@ public class LyricsParser {
         return result;
     }
 
+    public static List<LyricsLine> filterMetadataLines(List<LyricsLine> lines, String title, String artist) {
+        if (lines == null || lines.isEmpty()) return lines;
+        List<LyricsLine> output = new ArrayList<>();
+        boolean changed = false;
+        for (int i = 0; i < lines.size(); i++) {
+            LyricsLine line = lines.get(i);
+            if (i < 4 && line.getTimeMs() <= 10_000 && shouldDropIdentityLine(line.getText(), title, artist)) {
+                changed = true;
+                continue;
+            }
+            output.add(line);
+        }
+        return changed ? output : lines;
+    }
+
     private static long parseTime(Matcher matcher) {
         long minute = parseLong(matcher.group(1));
         long second = parseLong(matcher.group(2));
@@ -284,6 +299,14 @@ public class LyricsParser {
         String label = normalizeCreditLabel(value.substring(0, index));
         if (label.isEmpty()) return false;
         return isBlockedCreditLabel(label);
+    }
+
+    private static boolean shouldDropIdentityLine(String text, String title, String artist) {
+        String value = LyricsMatcher.normalize(text);
+        String song = LyricsMatcher.normalize(title);
+        String singer = LyricsMatcher.normalize(artist);
+        if (value.isEmpty() || song.isEmpty() || singer.isEmpty()) return false;
+        return value.contains(song) && value.contains(singer);
     }
 
     private static int firstCreditDelimiter(String text) {

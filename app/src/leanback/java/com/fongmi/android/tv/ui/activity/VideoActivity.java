@@ -1206,29 +1206,40 @@ public class VideoActivity extends PlaybackActivity implements CustomKeyDownVod.
 
     private boolean onKaraokeTrackPanel() {
         if (service() == null) return true;
-        boolean bound = KaraokeTrackRepository.hasBinding(player());
         ArrayList<String> items = new ArrayList<>();
-        items.add(getString(R.string.player_karaoke_track_generate));
         items.add(getString(R.string.player_karaoke_track_generate_pitch));
-        items.add(getString(R.string.player_karaoke_track_search));
-        items.add(getString(R.string.player_karaoke_track_import_file));
-        items.add(getString(R.string.player_karaoke_track_import_url));
-        items.add(getString(R.string.player_karaoke_track_sources));
-        if (bound) items.add(getString(R.string.player_karaoke_track_clear));
+        items.add(getString(R.string.player_karaoke_track_generate));
+        items.add(getString(R.string.player_karaoke_track_clear));
+        items.add(getString(R.string.player_karaoke_track_advanced));
         new MaterialAlertDialogBuilder(this, R.style.ThemeOverlay_WebHTV_LightDialog)
                 .setTitle(R.string.player_karaoke_track)
                 .setNegativeButton(R.string.dialog_negative, null)
                 .setItems(items.toArray(new String[0]), (dialog, which) -> {
-                    if (which == 0) generateKaraokeTrack();
-                    else if (which == 1) generateKaraokePitchTrack();
-                    else if (which == 2) showKaraokeTrackSearchDialog();
-                    else if (which == 3) chooseKaraokeTrackFile();
-                    else if (which == 4) showKaraokeTrackUrlDialog();
-                    else if (which == 5) showKaraokeTrackSourcesDialog();
-                    else clearKaraokeTrackBinding();
+                    if (which == 0) generateKaraokePitchTrack();
+                    else if (which == 1) generateKaraokeTrack();
+                    else if (which == 2) clearKaraokeTrackBinding();
+                    else showKaraokeTrackAdvancedPanel();
                 })
                 .show();
         return true;
+    }
+
+    private void showKaraokeTrackAdvancedPanel() {
+        ArrayList<String> items = new ArrayList<>();
+        items.add(getString(R.string.player_karaoke_track_search));
+        items.add(getString(R.string.player_karaoke_track_import_file));
+        items.add(getString(R.string.player_karaoke_track_import_url));
+        items.add(getString(R.string.player_karaoke_track_sources));
+        new MaterialAlertDialogBuilder(this, R.style.ThemeOverlay_WebHTV_LightDialog)
+                .setTitle(R.string.player_karaoke_track_advanced)
+                .setNegativeButton(R.string.dialog_negative, null)
+                .setItems(items.toArray(new String[0]), (dialog, which) -> {
+                    if (which == 0) showKaraokeTrackSearchDialog();
+                    else if (which == 1) chooseKaraokeTrackFile();
+                    else if (which == 2) showKaraokeTrackUrlDialog();
+                    else showKaraokeTrackSourcesDialog();
+                })
+                .show();
     }
 
     private void chooseKaraokeTrackFile() {
