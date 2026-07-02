@@ -42,17 +42,23 @@
                 android:layout_height="match_parent"
                 app:surface_type="none" />
 
-            <androidx.appcompat.widget.LinearLayoutCompat
+            <FrameLayout
                 android:id="@+id/audioStage"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:background="@drawable/shape_audio_player_background"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
                 android:paddingStart="28dp"
                 android:paddingEnd="28dp"
                 android:visibility="gone"
                 tools:visibility="visible">
+
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
                 <com.google.android.material.imageview.ShapeableImageView
                     android:id="@+id/audioCover"
@@ -307,7 +313,21 @@
 
                 </androidx.appcompat.widget.LinearLayoutCompat>
 
-            </androidx.appcompat.widget.LinearLayoutCompat>
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+                <androidx.appcompat.widget.AppCompatImageView
+                    android:id="@+id/audioBackgroundAction"
+                    android:layout_width="72dp"
+                    android:layout_height="82dp"
+                    android:layout_gravity="top|end"
+                    android:layout_marginEnd="-28dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/player_audio_background"
+                    android:padding="0dp"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/ic_audio_background_drip" />
+
+            </FrameLayout>
 
             <include
                 android:id="@+id/widget"

@@ -6,6 +6,8 @@ import android.app.Activity;
 import android.content.res.ColorStateList;
 import android.content.Intent;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -50,6 +52,7 @@ import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.Player;
 import androidx.media3.common.VideoSize;
 import androidx.media3.ui.PlayerView;
+import androidx.palette.graphics.Palette;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.transition.ChangeBounds;
@@ -197,6 +200,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private String mPlaybackEpisodeKey;
     private String mArtworkRequestUrl;
     private String mArtworkRequestOwner;
+    private int mAudioArtworkColor = Color.rgb(55, 45, 68);
     private final Map<String, String> mAudioQueueFlags = new HashMap<>();
     private final Map<String, String> mAudioQueueTitles = new HashMap<>();
     private final Map<String, String> mAudioQueueArtists = new HashMap<>();
@@ -646,6 +650,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.audioKeepAction.setOnClickListener(view -> onKeep());
         mBinding.audioSettingAction.setOnClickListener(view -> onSetting());
         mBinding.audioKaraokeAction.setOnClickListener(view -> onKaraokeMode());
+        mBinding.audioBackgroundAction.setOnClickListener(view -> cycleAudioBackground());
         mBinding.audioMoreAction.setOnClickListener(view -> onAudioMore());
         mBinding.audioTrackAction.setOnClickListener(view -> onTrack(C.TRACK_TYPE_AUDIO));
         mBinding.audioSubtitleAction.setOnClickListener(view -> onTrack(C.TRACK_TYPE_TEXT));
@@ -1819,7 +1824,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         ArrayList<Runnable> actions = new ArrayList<>();
         addAudioMoreItem(items, actions, getString(R.string.keep), this::onKeep);
         addAudioMoreItem(items, actions, getString(R.string.nav_setting), this::onSetting);
-        addAudioMoreItem(items, actions, getString(R.string.player_audio_background), this::showAudioBackgroundPanel);
         if (service() != null && !player().isEmpty()) addAudioMoreItem(items, actions, getString(R.string.player_osd), this::onInfo);
         if (service() != null && player().haveTrack(C.TRACK_TYPE_AUDIO)) addAudioMoreItem(items, actions, getString(R.string.play_track_audio), () -> onTrack(C.TRACK_TYPE_AUDIO));
         if (service() != null && (player().haveTrack(C.TRACK_TYPE_TEXT) || player().isVod())) addAudioMoreItem(items, actions, getString(R.string.play_track_text), () -> onTrack(C.TRACK_TYPE_TEXT));
@@ -1837,25 +1841,12 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         actions.add(action);
     }
 
-    private void showAudioBackgroundPanel() {
-        BottomSheetDialog dialog = createAudioSheet();
-        LinearLayout root = createAudioSheetRoot();
-        root.addView(createAudioSheetTitle(getString(R.string.player_audio_background)), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ResUtil.dp2px(32)));
+    private void cycleAudioBackground() {
         String[] presets = ResUtil.getStringArray(R.array.select_audio_background);
-        int selected = PlayerSetting.getAudioBackground();
-        String[] labels = new String[presets.length];
-        Runnable[] actions = new Runnable[presets.length];
-        for (int i = 0; i < presets.length; i++) {
-            final int index = i;
-            labels[i] = (i == selected ? "✓ " : "") + presets[i];
-            actions[i] = () -> {
-                PlayerSetting.putAudioBackground(index);
-                applyAudioBackground();
-            };
-        }
-        root.addView(createKaraokeActionGrid(dialog, true, labels, actions, 2), karaokeActionGridParams(10));
-        dialog.setContentView(root);
-        showAudioSheet(dialog);
+        int next = (PlayerSetting.getAudioBackground() + 1) % Math.max(1, presets.length);
+        PlayerSetting.putAudioBackground(next);
+        applyAudioBackground();
+        Notify.show(getString(R.string.player_audio_background_value, presets[next]));
     }
 
     private TextView createAudioMoreItem(BottomSheetDialog dialog, String label, Runnable action) {
@@ -2819,6 +2810,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         if (TextUtils.isEmpty(requestUrl)) {
             mBinding.exo.setDefaultArtwork(null);
             mBinding.audioCover.setImageResource(R.drawable.artwork);
+            updateAudioArtworkColor(null);
             return;
         }
         mBinding.audioCover.setImageResource(R.drawable.artwork);
@@ -2829,6 +2821,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
                 if (!isCurrentArtworkRequest(requestUrl, requestOwner)) return;
                 mBinding.exo.setDefaultArtwork(resource);
                 mBinding.audioCover.setImageDrawable(resource);
+                updateAudioArtworkColor(resource);
             }
 
             @Override
@@ -2838,6 +2831,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
                 mBinding.exo.setDefaultArtwork(errorDrawable);
                 if (errorDrawable == null) mBinding.audioCover.setImageResource(R.drawable.artwork);
                 else mBinding.audioCover.setImageDrawable(errorDrawable);
+                updateAudioArtworkColor(errorDrawable);
             }
         });
     }
@@ -3253,13 +3247,65 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     private void applyAudioBackground() {
         if (mBinding == null) return;
+        if (PlayerSetting.getAudioBackground() == PlayerSetting.AUDIO_BACKGROUND_ARTWORK) {
+            mBinding.audioStage.setBackground(createAudioArtworkBackground(mAudioArtworkColor));
+            return;
+        }
         int resId = switch (PlayerSetting.getAudioBackground()) {
             case PlayerSetting.AUDIO_BACKGROUND_BLACK -> R.drawable.shape_audio_player_background_black;
-            case PlayerSetting.AUDIO_BACKGROUND_WARM -> R.drawable.shape_audio_player_background_warm;
-            case PlayerSetting.AUDIO_BACKGROUND_VIOLET -> R.drawable.shape_audio_player_background_violet;
+            case PlayerSetting.AUDIO_BACKGROUND_NEON -> R.drawable.shape_audio_player_background;
+            case PlayerSetting.AUDIO_BACKGROUND_WINE -> R.drawable.shape_audio_player_background_warm;
+            case PlayerSetting.AUDIO_BACKGROUND_AMBER -> R.drawable.shape_audio_player_background_amber;
+            case PlayerSetting.AUDIO_BACKGROUND_TEAL -> R.drawable.shape_audio_player_background_violet;
             default -> R.drawable.shape_audio_player_background;
         };
         mBinding.audioStage.setBackgroundResource(resId);
+    }
+
+    private void updateAudioArtworkColor(@Nullable Drawable drawable) {
+        mAudioArtworkColor = extractAudioArtworkColor(drawable);
+        if (mAudioStageVisible && PlayerSetting.getAudioBackground() == PlayerSetting.AUDIO_BACKGROUND_ARTWORK) applyAudioBackground();
+    }
+
+    private int extractAudioArtworkColor(@Nullable Drawable drawable) {
+        if (drawable == null) return Color.rgb(55, 45, 68);
+        Bitmap bitmap = null;
+        try {
+            bitmap = createPaletteBitmap(drawable);
+            Palette palette = Palette.from(bitmap).maximumColorCount(8).generate();
+            Palette.Swatch swatch = palette.getVibrantSwatch();
+            if (swatch == null) swatch = palette.getMutedSwatch();
+            if (swatch == null) swatch = palette.getDominantSwatch();
+            return swatch == null ? Color.rgb(55, 45, 68) : swatch.getRgb();
+        } catch (Exception ignored) {
+            return Color.rgb(55, 45, 68);
+        } finally {
+            if (bitmap != null && !bitmap.isRecycled()) bitmap.recycle();
+        }
+    }
+
+    private Bitmap createPaletteBitmap(Drawable drawable) {
+        int width = 72;
+        int height = 72;
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+        return bitmap;
+    }
+
+    private Drawable createAudioArtworkBackground(int color) {
+        float[] hsv = new float[3];
+        Color.colorToHSV(color, hsv);
+        hsv[1] = Math.min(0.72f, Math.max(0.32f, hsv[1] * 0.95f));
+        hsv[2] = Math.min(0.34f, Math.max(0.16f, hsv[2] * 0.48f));
+        int start = Color.HSVToColor(hsv);
+        hsv[1] = Math.min(0.62f, hsv[1] * 0.9f);
+        hsv[2] = Math.max(0.07f, hsv[2] * 0.48f);
+        int center = Color.HSVToColor(hsv);
+        GradientDrawable drawable = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{start, center, Color.rgb(3, 3, 4)});
+        drawable.setDither(true);
+        return drawable;
     }
 
     private void setAudioRepeatSelected(boolean selected) {

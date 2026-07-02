@@ -955,6 +955,7 @@
     <string name="player_audio_repeat">Repeat</string>
     <string name="player_audio_more">More</string>
     <string name="player_audio_background">Background</string>
+    <string name="player_audio_background_value">Background: %1$s</string>
     <string name="player_lyrics_unknown">Unknown</string>
     <string name="player_lyrics_result_item">%1$s · %2$s · %3$d\n%4$s - %5$s</string>
     <string name="player_lyrics_rows_value">%1$d rows</string>
@@ -1216,10 +1217,12 @@
     </string-array>
 
     <string-array name="select_audio_background">
-        <item>Midnight gradient</item>
-        <item>Pure black</item>
-        <item>Warm stage</item>
-        <item>Blue violet</item>
+        <item>Artwork mood</item>
+        <item>Vinyl black</item>
+        <item>Neon violet</item>
+        <item>Velvet wine</item>
+        <item>Amber glow</item>
+        <item>Deep teal</item>
     </string-array>
 
     <string-array name="select_track">
