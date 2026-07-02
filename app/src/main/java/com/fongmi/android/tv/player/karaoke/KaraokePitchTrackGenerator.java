@@ -36,6 +36,7 @@ public class KaraokePitchTrackGenerator {
     private static final int HOP_SIZE = 1024;
     private static final int ANALYSIS_TARGET_SAMPLE_RATE = 16_000;
     private static final long ANALYSIS_WINDOW_EXTRA_MS = 600;
+    private static final long DECODE_SEEK_GRACE_MS = 1200;
     private static final double ANALYSIS_HIGH_PASS_HZ = 80.0;
     private static final double ANALYSIS_LOW_PASS_HZ = 3500.0;
     private static final double MIN_FREQUENCY_HZ = 80.0;
@@ -576,6 +577,13 @@ public class KaraokePitchTrackGenerator {
         long startMs = System.currentTimeMillis();
         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
         PitchFrameCollector collector = new PitchFrameCollector(sampleRate(inputFormat), windows);
+        int windowIndex = 0;
+        int seekedWindowIndex = -1;
+        boolean seekByWindow = windows != null && !windows.isEmpty();
+        if (seekByWindow) {
+            seekToWindow(extractor, decoder, collector, windows.get(0));
+            seekedWindowIndex = 0;
+        }
         boolean inputDone = false;
         boolean outputDone = false;
         MediaFormat outputFormat = inputFormat;
@@ -591,6 +599,21 @@ public class KaraokePitchTrackGenerator {
                         inputDone = true;
                     } else {
                         long sampleTimeUs = extractor.getSampleTime();
+                        if (seekByWindow) {
+                            long sampleMs = Math.max(0, sampleTimeUs / 1000L);
+                            while (windowIndex < windows.size() && sampleMs > windows.get(windowIndex).endMs + DECODE_SEEK_GRACE_MS) windowIndex++;
+                            if (windowIndex >= windows.size()) {
+                                decoder.queueInputBuffer(inputIndex, 0, 0, sampleTimeUs, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
+                                inputDone = true;
+                                continue;
+                            }
+                            AnalysisWindow window = windows.get(windowIndex);
+                            if (sampleMs < window.startMs - DECODE_SEEK_GRACE_MS && seekedWindowIndex != windowIndex) {
+                                seekToWindow(extractor, decoder, collector, window);
+                                seekedWindowIndex = windowIndex;
+                                continue;
+                            }
+                        }
                         decoder.queueInputBuffer(inputIndex, 0, size, sampleTimeUs, extractor.getSampleFlags());
                         reporter.decode(sampleTimeUs, durationMs);
                         extractor.advance();
@@ -616,33 +639,42 @@ public class KaraokePitchTrackGenerator {
         return frames;
     }
 
+    private static void seekToWindow(MediaExtractor extractor, MediaCodec decoder, PitchFrameCollector collector, AnalysisWindow window) {
+        if (window == null || window.startMs <= 0) return;
+        extractor.seekTo(window.startMs * 1000L, MediaExtractor.SEEK_TO_PREVIOUS_SYNC);
+        decoder.flush();
+        collector.resetStreamState();
+    }
+
     private static void collect(PitchFrameCollector collector, ByteBuffer buffer, MediaCodec.BufferInfo info, MediaFormat format) {
         int channels = Math.max(1, format.containsKey(MediaFormat.KEY_CHANNEL_COUNT) ? format.getInteger(MediaFormat.KEY_CHANNEL_COUNT) : 1);
         int encoding = format.containsKey(MediaFormat.KEY_PCM_ENCODING) ? format.getInteger(MediaFormat.KEY_PCM_ENCODING) : AudioFormat.ENCODING_PCM_16BIT;
         ByteBuffer data = buffer.duplicate().order(ByteOrder.LITTLE_ENDIAN);
         data.position(info.offset);
         data.limit(info.offset + info.size);
-        if (encoding == AudioFormat.ENCODING_PCM_FLOAT) collectFloat(collector, data, channels);
-        else collectPcm16(collector, data, channels);
+        if (encoding == AudioFormat.ENCODING_PCM_FLOAT) collectFloat(collector, data, channels, Math.max(0, info.presentationTimeUs));
+        else collectPcm16(collector, data, channels, Math.max(0, info.presentationTimeUs));
     }
 
-    private static void collectPcm16(PitchFrameCollector collector, ByteBuffer data, int channels) {
+    private static void collectPcm16(PitchFrameCollector collector, ByteBuffer data, int channels, long presentationTimeUs) {
         int frameBytes = channels * 2;
         int samples = data.remaining() / frameBytes;
+        long sourceIndex = collector.sourceIndexOf(presentationTimeUs);
         for (int i = 0; i < samples; i++) {
             float mono = 0;
             for (int c = 0; c < channels; c++) mono += data.getShort() / 32768f;
-            collector.add(mono / channels);
+            collector.add(mono / channels, sourceIndex + i);
         }
     }
 
-    private static void collectFloat(PitchFrameCollector collector, ByteBuffer data, int channels) {
+    private static void collectFloat(PitchFrameCollector collector, ByteBuffer data, int channels, long presentationTimeUs) {
         int frameBytes = channels * 4;
         int samples = data.remaining() / frameBytes;
+        long sourceIndex = collector.sourceIndexOf(presentationTimeUs);
         for (int i = 0; i < samples; i++) {
             float mono = 0;
             for (int c = 0; c < channels; c++) mono += data.getFloat();
-            collector.add(mono / channels);
+            collector.add(mono / channels, sourceIndex + i);
         }
     }
 
@@ -930,6 +962,7 @@ public class KaraokePitchTrackGenerator {
     private static class PitchFrameCollector {
 
         private final float[] ring = new float[FRAME_SIZE];
+        private final long[] timeRing = new long[FRAME_SIZE];
         private final float[] frame = new float[FRAME_SIZE];
         private final List<AnalysisWindow> windows;
         private final List<PitchFrame> frames = new ArrayList<>();
@@ -937,7 +970,6 @@ public class KaraokePitchTrackGenerator {
         private VoiceBandpassFilter filter;
         private Biquad resampleLowPass;
         private long sampleCount;
-        private long sourceSampleCount;
         private long previousSourceIndex;
         private double nextOutputSourcePosition;
         private double resampleStep;
@@ -966,41 +998,45 @@ public class KaraokePitchTrackGenerator {
             this.resampleStep = safeSource / (double) safeTarget;
         }
 
-        private void add(float value) {
+        private long sourceIndexOf(long presentationTimeUs) {
+            return Math.max(0, Math.round(presentationTimeUs * sourceSampleRate / 1_000_000.0));
+        }
+
+        private void add(float value, long sourceIndex) {
+            if (hasPreviousSourceSample && (sourceIndex <= previousSourceIndex || sourceIndex - previousSourceIndex > sourceSampleRate)) resetStreamState();
             if (resampleLowPass != null) value = (float) resampleLowPass.process(value);
             if (sampleRate >= sourceSampleRate) {
-                addResampled(value);
-                sourceSampleCount++;
+                addResampled(value, timeMs(sourceIndex));
                 return;
             }
-            long sourceIndex = sourceSampleCount++;
             if (!hasPreviousSourceSample) {
                 previousSourceSample = value;
                 previousSourceIndex = sourceIndex;
                 hasPreviousSourceSample = true;
-                addResampled(value);
-                nextOutputSourcePosition = resampleStep;
+                addResampled(value, timeMs(sourceIndex));
+                nextOutputSourcePosition = sourceIndex + resampleStep;
                 return;
             }
             while (nextOutputSourcePosition <= sourceIndex) {
                 double span = Math.max(1, sourceIndex - previousSourceIndex);
                 double fraction = Math.max(0, Math.min(1, (nextOutputSourcePosition - previousSourceIndex) / span));
-                addResampled((float) (previousSourceSample + (value - previousSourceSample) * fraction));
+                addResampled((float) (previousSourceSample + (value - previousSourceSample) * fraction), timeMs(nextOutputSourcePosition));
                 nextOutputSourcePosition += resampleStep;
             }
             previousSourceSample = value;
             previousSourceIndex = sourceIndex;
         }
 
-        private void addResampled(float value) {
+        private void addResampled(float value, long timeMs) {
             if (filter != null) value = filter.process(value);
-            ring[(int) (sampleCount % FRAME_SIZE)] = value;
+            int index = (int) (sampleCount % FRAME_SIZE);
+            ring[index] = value;
+            timeRing[index] = Math.max(0, timeMs);
             sampleCount++;
             if (sampleCount < FRAME_SIZE) return;
             if ((sampleCount - FRAME_SIZE) % HOP_SIZE != 0) return;
-            long centerSample = sampleCount - FRAME_SIZE / 2L;
-            long timeMs = Math.max(0, Math.round(centerSample * 1000.0 / sampleRate));
-            if (!isActive(timeMs)) {
+            long centerMs = timeRing[(int) ((sampleCount - FRAME_SIZE / 2L) % FRAME_SIZE)];
+            if (!isActive(centerMs)) {
                 skippedInactive++;
                 return;
             }
@@ -1008,10 +1044,24 @@ public class KaraokePitchTrackGenerator {
             double volume = rms(frame);
             if (volume < SILENCE_PREFILTER_VOLUME) {
                 skippedSilent++;
-                frames.add(new PitchFrame(new KaraokePitchSample(timeMs, 0, volume, 0)));
+                frames.add(new PitchFrame(new KaraokePitchSample(centerMs, 0, volume, 0)));
             } else {
-                frames.add(new PitchFrame(detector.detect(frame, frame.length, timeMs, volume)));
+                frames.add(new PitchFrame(detector.detect(frame, frame.length, centerMs, volume)));
             }
+        }
+
+        private long timeMs(double sourceIndex) {
+            return Math.max(0, Math.round(sourceIndex * 1000.0 / sourceSampleRate));
+        }
+
+        private void resetStreamState() {
+            sampleCount = 0;
+            previousSourceIndex = 0;
+            nextOutputSourcePosition = 0;
+            previousSourceSample = 0;
+            hasPreviousSourceSample = false;
+            filter = new VoiceBandpassFilter(sampleRate);
+            resampleLowPass = sourceSampleRate > sampleRate ? Biquad.lowPass(ANALYSIS_LOW_PASS_HZ, sourceSampleRate) : null;
         }
 
         private void copyFrame() {
