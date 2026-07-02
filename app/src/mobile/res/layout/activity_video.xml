@@ -350,7 +350,7 @@
                                 style="@style/AudioActionButton"
                                 android:layout_marginEnd="4dp"
                                 android:text="@string/player_karaoke_mode"
-                                app:drawableTopCompat="@drawable/ic_action_audio" />
+                                app:drawableTopCompat="@drawable/ic_action_ktv" />
 
                             <com.google.android.material.textview.MaterialTextView
                                 android:id="@+id/audioMoreAction"

@@ -32,7 +32,6 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.ScrollView;
-import android.widget.Space;
 import android.widget.TextView;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -1945,9 +1944,9 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         BottomSheetDialog dialog = createAudioSheet();
         LinearLayout root = createAudioSheetRoot();
         root.addView(createAudioSheetTitle(getString(R.string.player_karaoke_mode)), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ResUtil.dp2px(32)));
-        root.addView(createKaraokeModeSwitch(dialog), audioSheetTopParams(8, 58));
-        root.addView(createAudioSheetSection(getString(R.string.player_karaoke_track)), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ResUtil.dp2px(42)));
-        root.addView(createKaraokeActionGrid(dialog,
+        root.addView(createKaraokeModeSwitch(dialog), audioSheetTopParams(10, 62));
+        root.addView(createAudioSheetSection(getString(R.string.player_karaoke_track)), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ResUtil.dp2px(40)));
+        root.addView(createKaraokeActionGrid(dialog, false,
                 new String[]{
                         getString(R.string.player_karaoke_track_generate_pitch),
                         getString(R.string.player_karaoke_track_clear),
@@ -1958,7 +1957,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
                         this::clearKaraokeTrackBinding,
                         this::showKaraokeTrackAdvancedPanel
                 },
-                2), karaokeActionGridParams(true));
+                2), karaokeActionGridParams(6));
         dialog.setContentView(root);
         showAudioSheet(dialog);
     }
@@ -1966,53 +1965,42 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private void showKaraokeTrackAdvancedPanel() {
         BottomSheetDialog dialog = createAudioSheet();
         LinearLayout root = createAudioSheetRoot();
-        root.addView(createAudioSheetTitle(getString(R.string.player_karaoke_track_advanced)), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ResUtil.dp2px(32)));
-        root.addView(createKaraokeActionGrid(dialog,
+        root.addView(createKaraokeSheetHeader(dialog, getString(R.string.player_karaoke_track_advanced), this::showKaraokeModePanel), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ResUtil.dp2px(34)));
+        root.addView(createAudioSheetSection(getString(R.string.player_karaoke_track)), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ResUtil.dp2px(40)));
+        root.addView(createKaraokeActionGrid(dialog, true,
                 new String[]{
-                        getString(R.string.player_karaoke_track_back),
                         getString(R.string.player_karaoke_track_search),
                         getString(R.string.player_karaoke_track_import_file),
                         getString(R.string.player_karaoke_track_import_url),
                         getString(R.string.player_karaoke_track_sources)
                 },
                 new Runnable[]{
-                        this::showKaraokeModePanel,
                         this::showKaraokeTrackSearchDialog,
                         this::chooseKaraokeTrackFile,
                         this::showKaraokeTrackUrlDialog,
                         this::showKaraokeTrackSourcesDialog
                 },
-                2), karaokeActionGridParams(true));
+                2), karaokeActionGridParams(6));
         dialog.setContentView(root);
         showAudioSheet(dialog);
     }
 
-    private LinearLayout createKaraokeActionGrid(BottomSheetDialog dialog, String[] labels, Runnable[] actions, int columns) {
-        LinearLayout grid = new LinearLayout(this);
-        grid.setOrientation(LinearLayout.VERTICAL);
-        int safeColumns = Math.max(1, columns);
-        for (int i = 0; i < labels.length; i += safeColumns) {
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            for (int j = 0; j < safeColumns; j++) {
-                int index = i + j;
-                if (index < labels.length) row.addView(createKaraokeActionButton(dialog, labels[index], actions[index]), karaokeActionButtonParams(j > 0));
-                else row.addView(new Space(this), karaokeActionButtonParams(j > 0));
-            }
-            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ResUtil.dp2px(48));
-            if (i > 0) rowParams.topMargin = ResUtil.dp2px(10);
-            grid.addView(row, rowParams);
-        }
-        return grid;
+    private LinearLayout createKaraokeSheetHeader(BottomSheetDialog dialog, String title, Runnable backAction) {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        TextView titleView = createAudioSheetTitle(title);
+        row.addView(titleView, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1));
+        row.addView(createKaraokeHeaderButton(dialog, getString(R.string.player_karaoke_track_back), backAction), new LinearLayout.LayoutParams(ResUtil.dp2px(76), ResUtil.dp2px(32)));
+        return row;
     }
 
-    private TextView createKaraokeActionButton(BottomSheetDialog dialog, String label, Runnable action) {
-        TextView view = createAudioSheetText(label, 15, true);
+    private TextView createKaraokeHeaderButton(BottomSheetDialog dialog, String label, Runnable action) {
+        TextView view = createAudioSheetText(label, 14, true);
         view.setGravity(Gravity.CENTER);
-        view.setSingleLine(false);
-        view.setMaxLines(2);
-        view.setPadding(ResUtil.dp2px(8), 0, ResUtil.dp2px(8), 0);
-        view.setBackground(roundRect(0x18FFFFFF, 8, 1, 0x24FFFFFF));
+        view.setSingleLine(true);
+        view.setTextColor(0xE6FFFFFF);
+        view.setBackground(roundRect(0x12FFFFFF, 16, 1, 0x24FFFFFF));
         view.setOnClickListener(v -> {
             dialog.dismiss();
             action.run();
@@ -2020,9 +2008,45 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         return view;
     }
 
-    private LinearLayout.LayoutParams karaokeActionGridParams(boolean first) {
+    private LinearLayout createKaraokeActionGrid(BottomSheetDialog dialog, boolean compact, String[] labels, Runnable[] actions, int columns) {
+        LinearLayout grid = new LinearLayout(this);
+        grid.setOrientation(LinearLayout.VERTICAL);
+        int safeColumns = Math.max(1, columns);
+        for (int i = 0; i < labels.length; i += safeColumns) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            boolean fullRow = !compact && i + 1 == labels.length;
+            for (int j = 0; j < safeColumns; j++) {
+                int index = i + j;
+                if (index >= labels.length) break;
+                row.addView(createKaraokeActionButton(dialog, labels[index], actions[index], compact), fullRow ? karaokeActionButtonFullParams() : karaokeActionButtonParams(j > 0));
+                if (fullRow) break;
+            }
+            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ResUtil.dp2px(compact ? 46 : 48));
+            if (i > 0) rowParams.topMargin = ResUtil.dp2px(8);
+            grid.addView(row, rowParams);
+        }
+        return grid;
+    }
+
+    private TextView createKaraokeActionButton(BottomSheetDialog dialog, String label, Runnable action, boolean compact) {
+        TextView view = createAudioSheetText(label, compact ? 14 : 15, true);
+        view.setGravity(Gravity.CENTER);
+        view.setSingleLine(true);
+        view.setEllipsize(TextUtils.TruncateAt.END);
+        view.setPadding(ResUtil.dp2px(10), 0, ResUtil.dp2px(10), 0);
+        view.setTextColor(0xF2FFFFFF);
+        view.setBackground(roundRect(0x14FFFFFF, 14, 1, 0x22FFFFFF));
+        view.setOnClickListener(v -> {
+            dialog.dismiss();
+            action.run();
+        });
+        return view;
+    }
+
+    private LinearLayout.LayoutParams karaokeActionGridParams(int topMarginDp) {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.topMargin = ResUtil.dp2px(first ? 8 : 12);
+        params.topMargin = ResUtil.dp2px(topMarginDp);
         return params;
     }
 
@@ -2032,11 +2056,15 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         return params;
     }
 
+    private LinearLayout.LayoutParams karaokeActionButtonFullParams() {
+        return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+    }
+
     private View createKaraokeModeSwitch(BottomSheetDialog dialog) {
         LinearLayout row = new LinearLayout(this);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setPadding(ResUtil.dp2px(14), 0, ResUtil.dp2px(12), 0);
+        row.setPadding(ResUtil.dp2px(14), 0, ResUtil.dp2px(14), 0);
         boolean enabled = PlayerSetting.isKaraokeMode();
         row.setBackground(roundRect(0x12FFFFFF, 16, 1, 0x24FFFFFF));
 
@@ -2051,23 +2079,33 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         text.addView(status, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
         row.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1));
 
-        TextView action = createKaraokeModeAction(getString(enabled ? R.string.player_karaoke_mode_disable : R.string.player_karaoke_mode_enable), enabled, () -> {
-            setKaraokeMode(!PlayerSetting.isKaraokeMode());
-            dialog.dismiss();
+        FrameLayout toggle = createKaraokeModeToggle(enabled);
+        row.setOnClickListener(v -> {
+            boolean next = !PlayerSetting.isKaraokeMode();
+            setKaraokeMode(next);
+            status.setText(getString(next ? R.string.player_karaoke_mode_enabled : R.string.player_karaoke_mode_disabled));
+            status.setTextColor(next ? 0xFFFFC766 : 0x8CFFFFFF);
+            updateKaraokeModeToggle(toggle, next);
         });
-        row.setOnClickListener(v -> action.performClick());
-        row.addView(action, new LinearLayout.LayoutParams(ResUtil.dp2px(112), ResUtil.dp2px(40)));
+        row.addView(toggle, new LinearLayout.LayoutParams(ResUtil.dp2px(54), ResUtil.dp2px(30)));
         return row;
     }
 
-    private TextView createKaraokeModeAction(String label, boolean enabled, Runnable action) {
-        TextView view = createAudioSheetText(label, 15, true);
-        view.setGravity(Gravity.CENTER);
-        view.setSingleLine(true);
-        view.setTextColor(enabled ? Color.WHITE : 0xFF20160A);
-        view.setBackground(roundRect(enabled ? 0x18FFFFFF : 0xFFFFC766, 22, 1, enabled ? 0x34FFFFFF : 0));
-        view.setOnClickListener(v -> action.run());
-        return view;
+    private FrameLayout createKaraokeModeToggle(boolean enabled) {
+        FrameLayout toggle = new FrameLayout(this);
+        updateKaraokeModeToggle(toggle, enabled);
+        return toggle;
+    }
+
+    private void updateKaraokeModeToggle(FrameLayout toggle, boolean enabled) {
+        toggle.removeAllViews();
+        toggle.setBackground(roundRect(enabled ? 0xFFFFC766 : 0x18FFFFFF, 15, 1, enabled ? 0 : 0x2EFFFFFF));
+        View knob = new View(this);
+        knob.setBackground(roundRect(enabled ? 0xFF1B1620 : 0xFFE6E8EE, 12, 0, 0));
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(ResUtil.dp2px(24), ResUtil.dp2px(24), enabled ? Gravity.RIGHT | Gravity.CENTER_VERTICAL : Gravity.LEFT | Gravity.CENTER_VERTICAL);
+        params.leftMargin = ResUtil.dp2px(3);
+        params.rightMargin = ResUtil.dp2px(3);
+        toggle.addView(knob, params);
     }
 
     private void chooseKaraokeTrackFile() {

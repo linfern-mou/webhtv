@@ -846,18 +846,18 @@
     <string name="player_karaoke_line_score">Line %1$d%%</string>
     <string name="player_karaoke_track">Scoring track</string>
     <string name="player_karaoke_track_generate">Generate lightweight rhythm track</string>
-    <string name="player_karaoke_track_generate_pitch">Generate pitch scoring track</string>
-    <string name="player_karaoke_track_search">Search online tracks</string>
+    <string name="player_karaoke_track_generate_pitch">Generate track</string>
+    <string name="player_karaoke_track_search">Search online</string>
     <string name="player_karaoke_track_keyword">Scoring track keyword</string>
-    <string name="player_karaoke_track_import_file">Import UltraStar/MIDI file</string>
-    <string name="player_karaoke_track_import_url">Import track URL</string>
-    <string name="player_karaoke_track_sources">Custom GitHub sources</string>
+    <string name="player_karaoke_track_import_file">Import file</string>
+    <string name="player_karaoke_track_import_url">Import URL</string>
+    <string name="player_karaoke_track_sources">Track sources</string>
     <string name="player_karaoke_track_advanced">Advanced options</string>
     <string name="player_karaoke_track_back">Back</string>
     <string name="player_karaoke_track_sources_hint">One repo per line: owner/repo@branch or https://github.com/owner/repo/tree/branch</string>
     <string name="player_karaoke_track_sources_saved">Scoring track sources saved</string>
     <string name="player_karaoke_track_url_hint">UltraStar .txt URL, USDB ID, USDB detail URL, or append @Cookie=...</string>
-    <string name="player_karaoke_track_clear">Clear scoring track</string>
+    <string name="player_karaoke_track_clear">Clear binding</string>
     <string name="player_karaoke_track_searching">Searching scoring tracks...</string>
     <string name="player_karaoke_track_not_found">No scoring track found</string>
     <string name="player_karaoke_track_select">Select scoring track</string>
