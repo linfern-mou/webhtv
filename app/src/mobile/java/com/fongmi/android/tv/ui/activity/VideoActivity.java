@@ -1858,14 +1858,18 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         LinearLayout root = createAudioSheetRoot();
         LinearLayout[] gridRef = new LinearLayout[1];
         String[] labels = new String[]{
-                getString(PlayerSetting.isAudioBackgroundDecorated() ? R.string.player_audio_background_decorated_on : R.string.player_audio_background_decorated_off),
+                getString(PlayerSetting.isAudioBackgroundDecorated() ? R.string.player_audio_background_decorated_turn_off : R.string.player_audio_background_decorated_turn_on),
+                getString(PlayerSetting.isAudioBackgroundBreathing() ? R.string.player_audio_background_breathing_turn_off : R.string.player_audio_background_breathing_turn_on),
                 getString(R.string.player_audio_background_random_plain),
                 getString(R.string.player_audio_background_random_decoration),
-                getString(R.string.player_audio_background_random_mix),
         };
         Runnable[] actions = new Runnable[]{
                 () -> {
                     toggleAudioBackgroundDecorated();
+                    updateAudioBackgroundPanel(gridRef[0]);
+                },
+                () -> {
+                    toggleAudioBackgroundBreathing();
                     updateAudioBackgroundPanel(gridRef[0]);
                 },
                 () -> {
@@ -1874,10 +1878,6 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
                 },
                 () -> {
                     randomizeAudioBackgroundDecoration();
-                    updateAudioBackgroundPanel(gridRef[0]);
-                },
-                () -> {
-                    randomizeAudioBackgroundMix(true);
                     updateAudioBackgroundPanel(gridRef[0]);
                 },
         };
@@ -1889,8 +1889,9 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     }
 
     private void updateAudioBackgroundPanel(LinearLayout grid) {
-        if (grid == null || grid.getChildCount() == 0 || !(grid.getChildAt(0) instanceof ViewGroup row) || row.getChildCount() == 0 || !(row.getChildAt(0) instanceof TextView button)) return;
-        button.setText(getString(PlayerSetting.isAudioBackgroundDecorated() ? R.string.player_audio_background_decorated_on : R.string.player_audio_background_decorated_off));
+        if (grid == null || grid.getChildCount() == 0 || !(grid.getChildAt(0) instanceof ViewGroup row)) return;
+        if (row.getChildCount() > 0 && row.getChildAt(0) instanceof TextView button) button.setText(getString(PlayerSetting.isAudioBackgroundDecorated() ? R.string.player_audio_background_decorated_turn_off : R.string.player_audio_background_decorated_turn_on));
+        if (row.getChildCount() > 1 && row.getChildAt(1) instanceof TextView button) button.setText(getString(PlayerSetting.isAudioBackgroundBreathing() ? R.string.player_audio_background_breathing_turn_off : R.string.player_audio_background_breathing_turn_on));
     }
 
     private void toggleAudioBackgroundDecorated() {
@@ -1900,10 +1901,16 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         Notify.show(getString(decorated ? R.string.player_audio_background_decorated_on : R.string.player_audio_background_decorated_off));
     }
 
+    private void toggleAudioBackgroundBreathing() {
+        boolean breathing = !PlayerSetting.isAudioBackgroundBreathing();
+        PlayerSetting.putAudioBackgroundBreathing(breathing);
+        applyAudioBackground();
+        Notify.show(getString(breathing ? R.string.player_audio_background_breathing_on : R.string.player_audio_background_breathing_off));
+    }
+
     private void randomizeAudioPlainBackground() {
         PlayerSetting.putAudioBackground(PlayerSetting.AUDIO_BACKGROUND_RANDOM);
         PlayerSetting.putAudioBackgroundSeed(newAudioBackgroundSeed(0, PlayerSetting.getAudioBackgroundSeed()));
-        PlayerSetting.putAudioBackgroundDecorated(false);
         applyAudioBackground();
         Notify.show(getString(R.string.player_audio_background_random_plain_done));
     }
@@ -3383,7 +3390,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
 
     private void applyAudioBackground() {
         if (mBinding == null) return;
-        mBinding.audioStage.setBackground(new AudioPlayerBackgroundDrawable(PlayerSetting.getAudioBackground(), mAudioArtworkColor, PlayerSetting.isAudioBackgroundDecorated(), PlayerSetting.getAudioBackgroundSeed(), PlayerSetting.getAudioBackgroundDecorationSeed()));
+        mBinding.audioStage.setBackground(new AudioPlayerBackgroundDrawable(PlayerSetting.getAudioBackground(), mAudioArtworkColor, PlayerSetting.isAudioBackgroundDecorated(), PlayerSetting.isAudioBackgroundBreathing(), PlayerSetting.getAudioBackgroundSeed(), PlayerSetting.getAudioBackgroundDecorationSeed()));
         mBinding.audioStage.invalidate();
     }
 

@@ -189,6 +189,14 @@ public class PlayerSetting {
         Prefers.put("audio_background_decorated", decorated);
     }
 
+    public static boolean isAudioBackgroundBreathing() {
+        return Prefers.getBoolean("audio_background_breathing");
+    }
+
+    public static void putAudioBackgroundBreathing(boolean breathing) {
+        Prefers.put("audio_background_breathing", breathing);
+    }
+
     public static boolean isBackgroundOff() {
         return getBackground() == 0;
     }

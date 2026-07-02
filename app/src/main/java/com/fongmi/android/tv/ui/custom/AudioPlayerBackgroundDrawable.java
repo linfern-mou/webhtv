@@ -12,6 +12,7 @@ import android.graphics.Rect;
 import android.graphics.Shader;
 import android.graphics.SweepGradient;
 import android.graphics.drawable.Drawable;
+import android.os.SystemClock;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -25,9 +26,11 @@ public class AudioPlayerBackgroundDrawable extends Drawable {
     private final int style;
     private final int artworkColor;
     private final boolean decorated;
+    private final boolean breathing;
     private final int backgroundSeed;
     private final int decorationSeed;
     private int alpha;
+    private final Runnable frameCallback = this::invalidateSelf;
 
     public AudioPlayerBackgroundDrawable(int style, int artworkColor) {
         this(style, artworkColor, true);
@@ -42,11 +45,16 @@ public class AudioPlayerBackgroundDrawable extends Drawable {
     }
 
     public AudioPlayerBackgroundDrawable(int style, int artworkColor, boolean decorated, int backgroundSeed, int decorationSeed) {
+        this(style, artworkColor, decorated, false, backgroundSeed, decorationSeed);
+    }
+
+    public AudioPlayerBackgroundDrawable(int style, int artworkColor, boolean decorated, boolean breathing, int backgroundSeed, int decorationSeed) {
         this.paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         this.path = new Path();
         this.style = style;
         this.artworkColor = artworkColor;
         this.decorated = decorated;
+        this.breathing = breathing;
         this.backgroundSeed = backgroundSeed;
         this.decorationSeed = decorationSeed;
         this.alpha = 255;
@@ -75,8 +83,10 @@ public class AudioPlayerBackgroundDrawable extends Drawable {
             case PlayerSetting.AUDIO_BACKGROUND_RANDOM -> drawRandom(canvas, w, h);
             default -> drawArtwork(canvas, w, h);
         }
+        if (breathing) drawBreathingLight(canvas, w, h);
         drawReadability(canvas, w, h);
         canvas.restore();
+        if (breathing) scheduleSelf(frameCallback, SystemClock.uptimeMillis() + 50L);
     }
 
     private void drawArtwork(Canvas canvas, int w, int h) {
@@ -321,6 +331,25 @@ public class AudioPlayerBackgroundDrawable extends Drawable {
     private void fillRadial(Canvas canvas, float x, float y, float radius, int start, int end) {
         paint.setShader(new RadialGradient(x, y, radius, start, end, Shader.TileMode.CLAMP));
         canvas.drawCircle(x, y, radius, paint);
+        paint.setShader(null);
+    }
+
+    private void drawBreathingLight(Canvas canvas, int w, int h) {
+        long now = SystemClock.uptimeMillis();
+        float phase = (float) ((Math.sin(now / 1350.0) + 1.0) * 0.5);
+        float drift = (float) ((Math.sin(now / 4200.0) + 1.0) * 0.5);
+        int seed = backgroundSeed == 0 ? artworkColor : backgroundSeed;
+        int accent = style == PlayerSetting.AUDIO_BACKGROUND_ARTWORK ? vivid(artworkColor, 1.22f, 1.12f) : randomColor(seed, 12, 0.52f, 0.92f);
+        int accent2 = rotate(accent, 58f + drift * 34f, 0.9f, 1f);
+        int glowAlpha = (int) (28 + phase * 54);
+        int edgeAlpha = (int) (8 + phase * 18);
+        float cx = w * (0.2f + drift * 0.62f);
+        float cy = h * (0.18f + (1f - drift) * 0.22f);
+        float radius = Math.max(w, h) * (0.48f + phase * 0.18f);
+        fillRadial(canvas, cx, cy, radius, withAlpha(accent, glowAlpha), Color.TRANSPARENT);
+        fillRadial(canvas, w * (0.86f - drift * 0.28f), h * (0.76f + phase * 0.08f), Math.max(w, h) * (0.42f + phase * 0.12f), withAlpha(accent2, edgeAlpha + 22), Color.TRANSPARENT);
+        paint.setShader(new LinearGradient(0, h * 0.12f, w, h * 0.92f, new int[]{withAlpha(Color.WHITE, edgeAlpha), withAlpha(accent, edgeAlpha + 10), withAlpha(accent2, edgeAlpha)}, new float[]{0f, 0.46f, 1f}, Shader.TileMode.CLAMP));
+        canvas.drawRect(0, 0, w, h, paint);
         paint.setShader(null);
     }
 
@@ -1147,6 +1176,14 @@ public class AudioPlayerBackgroundDrawable extends Drawable {
         this.alpha = alpha;
         paint.setAlpha(alpha);
         invalidateSelf();
+    }
+
+    @Override
+    public boolean setVisible(boolean visible, boolean restart) {
+        boolean changed = super.setVisible(visible, restart);
+        if (visible && breathing) invalidateSelf();
+        else unscheduleSelf(frameCallback);
+        return changed;
     }
 
     @Override
