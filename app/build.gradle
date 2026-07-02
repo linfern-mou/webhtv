@@ -148,6 +148,7 @@ dependencies {
     implementation libs.newpipeextractor
     implementation libs.permissionx
     implementation libs.simple.xml
+    implementation libs.tensorflow.lite
     implementation libs.textdrawable
     implementation libs.zxing.core
     leanbackImplementation libs.leanback

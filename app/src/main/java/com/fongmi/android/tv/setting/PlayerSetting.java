@@ -406,6 +406,14 @@ public class PlayerSetting {
         Prefers.put("karaoke_mic_delay", Math.min(Math.max(value, -1000L), 1000L));
     }
 
+    public static boolean isKaraokeBasicPitchTflite() {
+        return Prefers.getBoolean("karaoke_basic_pitch_tflite");
+    }
+
+    public static void putKaraokeBasicPitchTflite(boolean value) {
+        Prefers.put("karaoke_basic_pitch_tflite", value);
+    }
+
     public static String getKaraokeGithubSources() {
         return Prefers.getString("karaoke_github_sources");
     }

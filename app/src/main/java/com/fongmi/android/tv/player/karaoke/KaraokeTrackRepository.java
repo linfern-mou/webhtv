@@ -10,6 +10,7 @@ import androidx.media3.common.MediaMetadata;
 import com.fongmi.android.tv.App;
 import com.fongmi.android.tv.player.PlayerManager;
 import com.fongmi.android.tv.player.lyrics.LyricsLine;
+import com.fongmi.android.tv.setting.PlayerSetting;
 import com.fongmi.android.tv.utils.Task;
 import com.github.catvod.net.OkHttp;
 import com.github.catvod.utils.Path;
@@ -130,7 +131,9 @@ public class KaraokeTrackRepository {
         if (input == null || input.isEmpty()) return ImportResult.fail("empty player");
         try {
             String signature = input.getSignature();
-            String text = KaraokePitchTrackGenerator.build(input, lines, progress);
+            String text = PlayerSetting.isKaraokeBasicPitchTflite()
+                    ? BasicPitchTfliteGenerator.build(input, lines, progress)
+                    : KaraokePitchTrackGenerator.build(input, lines, progress);
             deleteGeneratedBoundIfAny(signature);
             delete(generatedFile(signature));
             return importText(generatedPitchFile(signature), "Generated pitch scoring track", text);

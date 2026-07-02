@@ -117,19 +117,22 @@ public class KaraokePitchTrackGenerator {
         List<PitchFrame> frames = decode(input, segments, reporter);
         if (frames.isEmpty()) throw new IllegalStateException("no pitch frames");
         reporter.update(78, STAGE_ANALYZE);
-        String text = buildText(input.getKeyword(), input.getArtist(), segments, frames, reporter);
+        String text = buildText(input.getKeyword(), input.getArtist(), segments, notes(segments, frames), reporter, "Generated pitch scoring track from local audio; octave corrected and smoothed");
         reporter.update(100, STAGE_FINISH);
         return text;
     }
 
-    private static String buildText(String title, String artist, List<Segment> segments, List<PitchFrame> frames, ProgressReporter reporter) {
+    static String buildTextFromCandidates(String title, String artist, List<Segment> segments, List<List<PitchCandidate>> candidates, ProgressReporter reporter, String comment) {
+        return buildText(title, artist, segments, notesFromCandidates(segments, candidates), reporter, comment);
+    }
+
+    private static String buildText(String title, String artist, List<Segment> segments, List<Note> notes, ProgressReporter reporter, String comment) {
         StringBuilder builder = new StringBuilder();
         builder.append("#TITLE:").append(tag(title, "Generated pitch track")).append('\n');
         builder.append("#ARTIST:").append(tag(artist, "Unknown")).append('\n');
         builder.append("#BPM:").append(BPM).append('\n');
         builder.append("#GAP:0").append('\n');
-        builder.append("#COMMENT:Generated pitch scoring track from local audio; octave corrected and smoothed").append('\n');
-        List<Note> notes = notes(segments, frames);
+        builder.append("#COMMENT:").append(tag(comment, "Generated pitch scoring track from local audio")).append('\n');
         reporter.update(82, STAGE_ANALYZE);
         stabilize(notes);
         smoothLineContour(notes);
@@ -164,6 +167,10 @@ public class KaraokePitchTrackGenerator {
     private static List<Note> notes(List<Segment> segments, List<PitchFrame> frames) {
         List<List<PitchCandidate>> candidates = new ArrayList<>();
         for (Segment segment : segments) candidates.add(PitchWindow.from(frames, segment.startMs, segment.endMs).candidates());
+        return notesFromCandidates(segments, candidates);
+    }
+
+    private static List<Note> notesFromCandidates(List<Segment> segments, List<List<PitchCandidate>> candidates) {
         List<PitchCandidate> path = smoothCandidatePath(segments, candidates);
         List<Note> notes = new ArrayList<>();
         for (int i = 0; i < segments.size(); i++) notes.add(new Note(segments.get(i), path.get(i)));
@@ -756,7 +763,7 @@ public class KaraokePitchTrackGenerator {
         }
     }
 
-    private static List<Segment> segments(List<LyricsLine> lines, long durationMs) {
+    static List<Segment> segments(List<LyricsLine> lines, long durationMs) {
         List<Segment> segments = new ArrayList<>();
         for (int i = 0; i < lines.size() && segments.size() < MAX_NOTES; i++) {
             LyricsLine line = lines.get(i);
@@ -891,12 +898,12 @@ public class KaraokePitchTrackGenerator {
         return value.replace('\r', ' ').replace('\n', ' ').trim();
     }
 
-    private static class Segment {
+    static class Segment {
 
-        private final long startMs;
-        private final long endMs;
-        private final String text;
-        private boolean lineEnd;
+        final long startMs;
+        final long endMs;
+        final String text;
+        boolean lineEnd;
 
         private Segment(long startMs, long endMs, String text) {
             this.startMs = Math.max(0, startMs);
@@ -926,14 +933,14 @@ public class KaraokePitchTrackGenerator {
         }
     }
 
-    private static class PitchCandidate {
+    static class PitchCandidate {
 
-        private static final PitchCandidate EMPTY = new PitchCandidate(-1, 0);
+        static final PitchCandidate EMPTY = new PitchCandidate(-1, 0);
 
-        private final int pitch;
-        private final double quality;
+        final int pitch;
+        final double quality;
 
-        private PitchCandidate(int pitch, double quality) {
+        PitchCandidate(int pitch, double quality) {
             this.pitch = pitch >= 0 ? clampMidi(pitch) : -1;
             this.quality = Math.max(0, Math.min(1, quality));
         }
@@ -1311,7 +1318,7 @@ public class KaraokePitchTrackGenerator {
         }
     }
 
-    private static class ProgressReporter {
+    static class ProgressReporter {
 
         private static final long THROTTLE_MS = 350;
 
@@ -1321,11 +1328,11 @@ public class KaraokePitchTrackGenerator {
         private int lastStage = -1;
         private long lastEmitMs;
 
-        private ProgressReporter(Progress progress) {
+        ProgressReporter(Progress progress) {
             this.progress = progress;
         }
 
-        private void decode(long sampleTimeUs, long durationMs) {
+        void decode(long sampleTimeUs, long durationMs) {
             if (durationMs <= 0 || sampleTimeUs < 0) {
                 update(Math.max(lastPercent, 12), STAGE_DECODE);
                 return;
@@ -1334,7 +1341,7 @@ public class KaraokePitchTrackGenerator {
             update(5 + (int) Math.round(ratio * 68), STAGE_DECODE);
         }
 
-        private void update(int percent, int stage) {
+        void update(int percent, int stage) {
             if (progress == null) return;
             long now = System.currentTimeMillis();
             int safePercent = Math.max(0, Math.min(100, Math.max(percent, lastPercent)));

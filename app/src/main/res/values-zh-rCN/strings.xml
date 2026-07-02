@@ -852,6 +852,9 @@
     <string name="player_karaoke_track_sources">谱源管理</string>
     <string name="player_karaoke_track_advanced">高级选项</string>
     <string name="player_karaoke_track_back">返回</string>
+    <string name="player_karaoke_track_basic_pitch_tflite">Basic Pitch：%1$s</string>
+    <string name="player_karaoke_track_option_enabled">已开启</string>
+    <string name="player_karaoke_track_option_disabled">已关闭</string>
     <string name="player_karaoke_track_sources_hint">每行一个仓库：owner/repo@branch 或 https://github.com/owner/repo/tree/branch</string>
     <string name="player_karaoke_track_sources_saved">评分谱源已保存</string>
     <string name="player_karaoke_track_url_hint">UltraStar .txt 链接、USDB ID、USDB 详情页，或追加 @Cookie=...</string>

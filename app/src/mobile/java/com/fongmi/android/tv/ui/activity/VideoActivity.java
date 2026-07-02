@@ -2098,12 +2098,14 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         root.addView(createAudioSheetSection(getString(R.string.player_karaoke_track)), new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ResUtil.dp2px(40)));
         root.addView(createKaraokeActionGrid(dialog, true,
                 new String[]{
+                        getKaraokeBasicPitchLabel(),
                         getString(R.string.player_karaoke_track_search),
                         getString(R.string.player_karaoke_track_import_file),
                         getString(R.string.player_karaoke_track_import_url),
                         getString(R.string.player_karaoke_track_sources)
                 },
                 new Runnable[]{
+                        this::toggleKaraokeBasicPitchTflite,
                         this::showKaraokeTrackSearchDialog,
                         this::chooseKaraokeTrackFile,
                         this::showKaraokeTrackUrlDialog,
@@ -2112,6 +2114,15 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
                 2), karaokeActionGridParams(6));
         dialog.setContentView(root);
         showAudioSheet(dialog);
+    }
+
+    private String getKaraokeBasicPitchLabel() {
+        return getString(R.string.player_karaoke_track_basic_pitch_tflite, getString(PlayerSetting.isKaraokeBasicPitchTflite() ? R.string.player_karaoke_track_option_enabled : R.string.player_karaoke_track_option_disabled));
+    }
+
+    private void toggleKaraokeBasicPitchTflite() {
+        PlayerSetting.putKaraokeBasicPitchTflite(!PlayerSetting.isKaraokeBasicPitchTflite());
+        showKaraokeTrackAdvancedPanel();
     }
 
     private LinearLayout createKaraokeSheetHeader(BottomSheetDialog dialog, String title, Runnable backAction) {
