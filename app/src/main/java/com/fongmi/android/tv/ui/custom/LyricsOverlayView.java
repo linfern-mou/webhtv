@@ -43,6 +43,7 @@ public class LyricsOverlayView extends FrameLayout {
     private List<LyricsLine> lines = Collections.emptyList();
     private boolean compact;
     private boolean desktopMode;
+    private boolean audioStageMode;
     private boolean playing;
     private int index = -1;
     private long basePositionMs;
@@ -78,6 +79,16 @@ public class LyricsOverlayView extends FrameLayout {
         setClickable(desktopMode);
         box.setPadding(dp(desktopMode ? 16 : 18), dp(desktopMode ? 8 : 10), dp(desktopMode ? 16 : 18), dp(desktopMode ? 8 : 10));
         box.setBackground(desktopMode ? desktopBackground() : null);
+        applyStyle();
+    }
+
+    public void setAudioStageMode(boolean audioStageMode) {
+        if (this.audioStageMode == audioStageMode) return;
+        this.audioStageMode = audioStageMode;
+        LayoutParams params = (LayoutParams) box.getLayoutParams();
+        params.gravity = audioStageMode ? Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL : Gravity.CENTER;
+        box.setLayoutParams(params);
+        box.setPadding(dp(18), dp(10), dp(18), dp(audioStageMode ? 34 : 10));
         applyStyle();
     }
 

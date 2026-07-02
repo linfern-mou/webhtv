@@ -164,6 +164,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private ParseAdapter mParseAdapter;
     private LyricsController mLyrics;
     private KaraokeController mKaraoke;
+    private boolean mAudioStageVisible;
     private boolean mKaraokeResultShown;
     private AlertDialog mLyricsResultDialog;
     private AlertDialog mKaraokePitchDialog;
@@ -683,7 +684,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         if (isInPictureInPictureMode) {
             mBinding.video.setLayoutParams(new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT));
         } else {
-            mBinding.video.setLayoutParams(mFrameParams);
+            applyAudioStageLayout(mAudioStageVisible);
             restoreContextWall();
         }
     }
@@ -803,6 +804,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         setDetailLyrics(item.getContent());
         setText(mBinding.remark, 0, item.getRemarks());
         setOther(mBinding.other, item);
+        updateAudioStageText();
     }
 
     private void setText(TextView view, int resId, String text) {
@@ -865,6 +867,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             setText(mBinding.content, 0, result.getDesc());
             setPlaybackLyrics(result.getDesc());
         }
+        updateAudioStageText();
         mBinding.control.parse.setVisibility(isUseParse() ? View.VISIBLE : View.GONE);
         List<Danmaku> siteDanmakus = result.getDanmaku();
         startPlayer(getHistoryKey(), result, isUseParse(), getSite().getTimeout(), buildMetadata());
@@ -1975,11 +1978,14 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             @Override
             public void onResourceReady(@NonNull Drawable resource, @Nullable Transition<? super Drawable> transition) {
                 mBinding.exo.setDefaultArtwork(resource);
+                mBinding.audioCover.setImageDrawable(resource);
             }
 
             @Override
             public void onLoadFailed(@Nullable Drawable errorDrawable) {
                 mBinding.exo.setDefaultArtwork(errorDrawable);
+                if (errorDrawable == null) mBinding.audioCover.setImageResource(R.drawable.artwork);
+                else mBinding.audioCover.setImageDrawable(errorDrawable);
             }
         });
     }
@@ -2220,6 +2226,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         if (name) mHistory.setVodName(item.getName());
         if (name) mBinding.name.setText(item.getName());
         if (name) mBinding.control.title.setText(item.getName());
+        if (name) updateAudioStageText();
         updateFlag(getFlag(), item.getFlags());
         if (pic) setArtwork(item.getPic());
         if (pic || name) setMetadata();
@@ -2291,6 +2298,63 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
     private void updateAudioOnlyState() {
         if (service() == null) return;
         setAudioOnly(LyricsController.isAudioOnly(player()));
+        setAudioStageVisible(isAudioOnly() || isMusicLike());
+    }
+
+    private void setAudioStageVisible(boolean visible) {
+        if (mAudioStageVisible == visible) {
+            updateAudioStageText();
+            return;
+        }
+        mAudioStageVisible = visible;
+        mBinding.audioStage.setVisibility(visible ? View.VISIBLE : View.GONE);
+        mBinding.lyrics.setAudioStageMode(visible);
+        applyAudioStageLayout(visible);
+        updateAudioStageText();
+    }
+
+    private void applyAudioStageLayout(boolean visible) {
+        if (isFullscreen() || isInPictureInPictureMode()) return;
+        if (!visible) {
+            if (mFrameHeight > 0) mFrameParams.height = mFrameHeight;
+        } else if (isPort()) {
+            int screen = ResUtil.getScreenHeight(this);
+            int min = ResUtil.dp2px(390);
+            int max = ResUtil.dp2px(540);
+            mFrameParams.height = Math.max(min, Math.min(max, screen - ResUtil.dp2px(170)));
+        } else {
+            mFrameParams.height = Math.max(mFrameHeight, ResUtil.dp2px(300));
+        }
+        mBinding.video.setLayoutParams(mFrameParams);
+    }
+
+    private void updateAudioStageText() {
+        if (mBinding == null) return;
+        String title = getAudioStageTitle();
+        String episode = getEpisode() == null ? "" : getEpisode().getName();
+        String site = getSite() == null ? "" : getSite().getName();
+        String subtitle = joinAudioStageSubtitle(site, episode);
+        mBinding.audioTitle.setText(TextUtils.isEmpty(title) ? getString(R.string.player_audio_badge_audio) : title);
+        mBinding.audioSubtitle.setText(subtitle);
+        mBinding.audioSubtitle.setVisibility(TextUtils.isEmpty(subtitle) ? View.GONE : View.VISIBLE);
+        mBinding.audioBadgeLyrics.setText(PlayerSetting.isKaraokeMode() ? getString(R.string.player_karaoke_mode) : getString(R.string.player_audio_badge_lyrics));
+    }
+
+    private String getAudioStageTitle() {
+        if (mHistory != null && !TextUtils.isEmpty(mHistory.getVodName())) return mHistory.getVodName();
+        if (!TextUtils.isEmpty(getName())) return getName();
+        CharSequence text = mBinding.name.getText();
+        return text == null ? "" : text.toString();
+    }
+
+    private String joinAudioStageSubtitle(String site, String episode) {
+        StringBuilder sb = new StringBuilder();
+        if (!TextUtils.isEmpty(site)) sb.append(site);
+        if (!TextUtils.isEmpty(episode)) {
+            if (sb.length() > 0) sb.append(" · ");
+            sb.append(episode);
+        }
+        return sb.toString();
     }
 
     private void refreshLyrics() {

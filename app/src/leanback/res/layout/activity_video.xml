@@ -34,6 +34,115 @@
             android:layout_height="match_parent"
             app:surface_type="none" />
 
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:id="@+id/audioStage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/shape_audio_stage"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="84dp"
+            android:paddingEnd="84dp"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/audioCover"
+                android:layout_width="360dp"
+                android:layout_height="360dp"
+                android:background="@drawable/shape_audio_cover"
+                android:padding="2dp"
+                android:scaleType="centerCrop"
+                android:src="@drawable/artwork" />
+
+            <androidx.appcompat.widget.LinearLayoutCompat
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="64dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/audioTitle"
+                    style="@style/Video.ContextText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:textColor="@color/white"
+                    android:textSize="38sp"
+                    android:textStyle="bold"
+                    tools:text="八段锦口令音乐" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/audioSubtitle"
+                    style="@style/Video.ContextText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/white_70"
+                    android:textSize="20sp"
+                    tools:text="站源 · 当前播放列表" />
+
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:id="@+id/audioBadges"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="28dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/audioBadgeFormat"
+                        style="@style/Video.ContextText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="38dp"
+                        android:background="@drawable/shape_audio_badge"
+                        android:gravity="center"
+                        android:minWidth="84dp"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:text="@string/player_audio_badge_audio"
+                        android:textColor="@color/white_90"
+                        android:textSize="16sp" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/audioBadgeLyrics"
+                        style="@style/Video.ContextText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="38dp"
+                        android:layout_marginStart="12dp"
+                        android:background="@drawable/shape_audio_badge"
+                        android:gravity="center"
+                        android:minWidth="84dp"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:text="@string/player_audio_badge_lyrics"
+                        android:textColor="@color/white_90"
+                        android:textSize="16sp" />
+
+                    <com.google.android.material.textview.MaterialTextView
+                        android:id="@+id/audioBadgeQueue"
+                        style="@style/Video.ContextText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="38dp"
+                        android:layout_marginStart="12dp"
+                        android:background="@drawable/shape_audio_badge"
+                        android:gravity="center"
+                        android:minWidth="84dp"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:text="@string/player_audio_badge_queue"
+                        android:textColor="@color/white_90"
+                        android:textSize="16sp" />
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+            </androidx.appcompat.widget.LinearLayoutCompat>
+
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
         <include
             android:id="@+id/widget"
             layout="@layout/view_widget_vod"

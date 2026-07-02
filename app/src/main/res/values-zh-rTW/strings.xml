@@ -905,6 +905,9 @@
     <string name="player_lyrics_word">逐字</string>
     <string name="player_lyrics_synced">逐句</string>
     <string name="player_lyrics_plain">文字</string>
+    <string name="player_audio_badge_audio">音訊</string>
+    <string name="player_audio_badge_lyrics">歌詞</string>
+    <string name="player_audio_badge_queue">佇列</string>
     <string name="player_lyrics_unknown">未知</string>
     <string name="player_lyrics_result_item">%1$s · %2$s · %3$d\n%4$s - %5$s</string>
     <string name="player_lyrics_rows_value">%1$d 行</string>
