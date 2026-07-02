@@ -652,7 +652,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         mBinding.audioKeepAction.setOnClickListener(view -> onKeep());
         mBinding.audioSettingAction.setOnClickListener(view -> onSetting());
         mBinding.audioKaraokeAction.setOnClickListener(view -> onKaraokeMode());
-        mBinding.audioBackgroundAction.setOnClickListener(view -> showAudioBackgroundPanel());
+        mBinding.audioBackgroundAction.setOnClickListener(view -> randomizeAudioBackgroundMix());
         mBinding.audioMoreAction.setOnClickListener(view -> onAudioMore());
         mBinding.audioTrackAction.setOnClickListener(view -> onTrack(C.TRACK_TYPE_AUDIO));
         mBinding.audioSubtitleAction.setOnClickListener(view -> onTrack(C.TRACK_TYPE_TEXT));
@@ -1885,7 +1885,7 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
         gridRef[0] = createKaraokeActionGrid(dialog, true, labels, actions, 2, false);
         root.addView(gridRef[0], karaokeActionGridParams(10));
         dialog.setContentView(root);
-        showAudioSheet(dialog);
+        showAudioBackgroundSheet(dialog);
     }
 
     private void updateAudioBackgroundPanel(LinearLayout grid) {
@@ -3719,6 +3719,16 @@ public class VideoActivity extends PlaybackActivity implements Clock.Callback, C
             behavior.setDraggable(draggable);
         });
         dialog.show();
+    }
+
+    private void showAudioBackgroundSheet(BottomSheetDialog dialog) {
+        showAudioSheet(dialog);
+        Window window = dialog.getWindow();
+        if (window == null) return;
+        WindowManager.LayoutParams params = window.getAttributes();
+        params.dimAmount = 0f;
+        window.setAttributes(params);
+        window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
     }
 
     private void updateLyricsResultList(String[] labels) {

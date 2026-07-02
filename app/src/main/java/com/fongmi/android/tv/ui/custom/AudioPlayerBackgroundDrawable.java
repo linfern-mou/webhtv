@@ -187,55 +187,65 @@ public class AudioPlayerBackgroundDrawable extends Drawable {
         fillLinear(canvas, w, h, start, center, end, reverse);
         if (!decorated) return;
         int motif = Math.floorMod(mixSeed(deco), 12);
+        int accent = randomColor(deco, 3, 0.58f, 0.96f);
+        int accent2 = randomColor(deco, 4, 0.5f, 0.88f);
+        int glow = randomColor(deco, 5, 0.28f, 0.98f);
+        float x1 = randomRange(deco, 6, 0.14f, 0.86f);
+        float y1 = randomRange(deco, 7, 0.12f, 0.62f);
+        float x2 = randomRange(deco, 8, 0.2f, 0.9f);
+        float y2 = randomRange(deco, 9, 0.34f, 0.86f);
+        int gridStep = Math.max(16, w / (12 + Math.floorMod(mixSeed(deco + 17), 12)));
         switch (motif) {
             case 0 -> {
-                drawRibbon(canvas, w, h, -0.08f, 0.24f, withAlpha(end, 150), withAlpha(end, 32));
-                drawRibbon(canvas, w, h, 0.34f, 0.58f, withAlpha(center, 120), withAlpha(center, 24));
-                drawGrid(canvas, w, h, 0x2CFFFFFF, Math.max(18, w / 18));
+                drawVinyl(canvas, w * x1, h * y1, Math.min(w, h) * randomRange(deco, 10, 0.42f, 0.68f), withAlpha(Color.WHITE, 50), withAlpha(accent, 150));
+                drawOrbitRings(canvas, w * x1, h * y1, Math.min(w, h) * randomRange(deco, 11, 0.16f, 0.34f), deco, withAlpha(accent2, 105));
             }
             case 1 -> {
-                drawVinyl(canvas, w * 0.28f, h * 0.28f, Math.min(w, h) * 0.5f, 0x44FFFFFF, withAlpha(center, 132));
-                drawRibbon(canvas, w, h, 0.5f, 0.76f, withAlpha(end, 130), withAlpha(end, 22));
+                drawEqualizerBars(canvas, w, h, deco, randomRange(deco, 10, 0.46f, 0.72f), 0.94f, withAlpha(accent, 132));
+                fillRadial(canvas, w * x2, h * y1, Math.max(w, h) * 0.34f, withAlpha(accent2, 78), Color.TRANSPARENT);
             }
             case 2 -> {
-                fillRadial(canvas, w * 0.72f, h * 0.24f, Math.min(w, h) * 0.26f, 0xCCFFF3A3, Color.TRANSPARENT);
-                drawHorizon(canvas, w, h, withAlpha(rotate(start, 180f, 0.8f, 0.42f), 125), 0.66f, 0.1f);
+                fillRadial(canvas, w * x2, h * y1, Math.min(w, h) * randomRange(deco, 10, 0.22f, 0.38f), withAlpha(glow, 210), Color.TRANSPARENT);
+                fillRadial(canvas, w * x1, h * y2, Math.max(w, h) * randomRange(deco, 11, 0.32f, 0.58f), withAlpha(accent, 95), Color.TRANSPARENT);
+                drawRibbon(canvas, w, h, randomRange(deco, 12, -0.04f, 0.18f), randomRange(deco, 13, 0.34f, 0.58f), withAlpha(accent2, 150), withAlpha(accent2, 24));
             }
             case 3 -> {
-                drawWave(canvas, w, h, h * 0.36f, h * 0.1f, 0x70FFFFFF, withAlpha(center, 26));
-                drawWave(canvas, w, h, h * 0.6f, h * 0.14f, withAlpha(end, 108), withAlpha(end, 24));
+                drawWave(canvas, w, h, h * randomRange(deco, 10, 0.26f, 0.48f), h * randomRange(deco, 11, 0.08f, 0.18f), withAlpha(Color.WHITE, 86), withAlpha(accent, 30));
+                drawWave(canvas, w, h, h * randomRange(deco, 12, 0.52f, 0.78f), h * randomRange(deco, 13, 0.12f, 0.24f), withAlpha(accent2, 136), withAlpha(accent2, 28));
+                drawSparkleField(canvas, w, h, deco, 16, withAlpha(Color.WHITE, 70));
             }
-            case 4 -> drawCandyStripes(canvas, w, h);
+            case 4 -> {
+                drawSparkleField(canvas, w, h, deco, 62, withAlpha(Color.WHITE, 104));
+                fillRadial(canvas, w * x1, h * y1, Math.min(w, h) * randomRange(deco, 10, 0.22f, 0.42f), withAlpha(accent, 120), Color.TRANSPARENT);
+            }
             case 5 -> {
-                fillRadial(canvas, w * 0.22f, h * 0.18f, Math.min(w, h) * 0.24f, 0xCFFFF6B8, Color.TRANSPARENT);
-                drawCloudBand(canvas, w, h, 0.34f, 0x70FFFFFF);
+                drawStaffLines(canvas, w, h, deco, randomRange(deco, 10, 0.2f, 0.52f), withAlpha(Color.WHITE, 78), withAlpha(accent, 128));
+                drawWave(canvas, w, h, h * randomRange(deco, 11, 0.66f, 0.84f), h * 0.08f, withAlpha(accent2, 95), 0x11FFFFFF);
             }
             case 6 -> {
-                drawWave(canvas, w, h, h * 0.34f, h * 0.16f, 0x76FFFFFF, 0x18FFFFFF);
-                drawFineLines(canvas, w, h, 0x2AFFFFFF, true);
+                drawLightBeams(canvas, w, h, deco, withAlpha(accent, 118), withAlpha(accent2, 74));
+                drawFineLines(canvas, w, h, withAlpha(Color.WHITE, 30), false);
             }
             case 7 -> {
-                drawGrid(canvas, w, h, 0x58FFFFFF, Math.max(20, w / 15));
-                drawRibbon(canvas, w, h, 0.12f, 0.38f, withAlpha(rotate(start, 210f, 1f, 0.45f), 118), 0x22000000);
+                drawConstellation(canvas, w, h, deco, withAlpha(Color.WHITE, 120), withAlpha(accent, 90));
+                fillRadial(canvas, w * x2, h * y2, Math.max(w, h) * randomRange(deco, 12, 0.2f, 0.38f), withAlpha(glow, 72), Color.TRANSPARENT);
             }
             case 8 -> {
-                fillRadial(canvas, w * 0.2f, h * 0.16f, Math.min(w, h) * 0.24f, 0xBCFFF0A0, Color.TRANSPARENT);
-                drawLeaf(canvas, w, h, 0.68f, 0.2f, withAlpha(center, 105));
-                drawLeaf(canvas, w, h, 0.82f, 0.48f, withAlpha(start, 90));
-                drawHorizon(canvas, w, h, withAlpha(rotate(center, 170f, 0.85f, 0.42f), 120), 0.72f, 0.09f);
+                drawGrain(canvas, w, h, deco, 115, withAlpha(Color.WHITE, 42));
+                drawFineLines(canvas, w, h, withAlpha(accent2, 42), true);
             }
             case 9 -> {
-                drawCitrus(canvas, w * 0.76f, h * 0.22f, Math.min(w, h) * 0.25f);
-                drawWave(canvas, w, h, h * 0.76f, h * 0.1f, withAlpha(end, 90), 0x11FFFFFF);
+                drawOrbitRings(canvas, w * x2, h * y1, Math.min(w, h) * randomRange(deco, 10, 0.2f, 0.42f), deco, withAlpha(accent, 132));
+                drawSparkleField(canvas, w, h, deco + 71, 28, withAlpha(accent2, 96));
             }
             case 10 -> {
-                fillRadial(canvas, w * 0.68f, h * 0.22f, Math.min(w, h) * 0.22f, 0xAAFFE5A3, Color.TRANSPARENT);
-                drawMountain(canvas, w, h, 0.62f, withAlpha(rotate(start, 150f, 0.9f, 0.42f), 120));
-                drawMountain(canvas, w, h, 0.74f, withAlpha(rotate(center, 180f, 0.9f, 0.38f), 135));
+                drawEqualizerBars(canvas, w, h, deco, 0.18f, randomRange(deco, 10, 0.58f, 0.74f), withAlpha(accent, 86));
+                drawEqualizerBars(canvas, w, h, deco + 43, randomRange(deco, 11, 0.6f, 0.78f), 0.96f, withAlpha(accent2, 132));
             }
             default -> {
-                fillRadial(canvas, w * 0.18f, h * 0.18f, Math.max(w, h) * 0.55f, 0x66FFFFFF, Color.TRANSPARENT);
-                fillRadial(canvas, w * 0.82f, h * 0.62f, Math.max(w, h) * 0.42f, withAlpha(end, 72), Color.TRANSPARENT);
+                drawLightBeams(canvas, w, h, deco, withAlpha(Color.WHITE, 52), withAlpha(accent, 92));
+                drawOrbitRings(canvas, w * x1, h * y2, Math.min(w, h) * randomRange(deco, 10, 0.14f, 0.28f), deco + 91, withAlpha(accent2, 112));
+                drawSparkleField(canvas, w, h, deco + 17, 22, withAlpha(Color.WHITE, 86));
             }
         }
     }
@@ -396,6 +406,117 @@ public class AudioPlayerBackgroundDrawable extends Drawable {
         canvas.drawPath(path, paint);
     }
 
+    private void drawOrbitRings(Canvas canvas, float cx, float cy, float r, int seed, int color) {
+        paint.setShader(null);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        for (int i = 0; i < 4; i++) {
+            float scale = 0.72f + i * 0.28f + randomRange(seed, 20 + i, -0.05f, 0.06f);
+            float stretch = randomRange(seed, 30 + i, 0.68f, 1.28f);
+            paint.setStrokeWidth(Math.max(1.2f, r / (42f + i * 10f)));
+            paint.setColor(withAlpha(color, Math.max(28, 120 - i * 22)));
+            canvas.save();
+            canvas.rotate(randomRange(seed, 40 + i, -22f, 22f), cx, cy);
+            canvas.drawOval(cx - r * scale, cy - r * scale * stretch * 0.48f, cx + r * scale, cy + r * scale * stretch * 0.48f, paint);
+            canvas.restore();
+        }
+        paint.setStrokeCap(Paint.Cap.BUTT);
+        paint.setStyle(Paint.Style.FILL);
+    }
+
+    private void drawEqualizerBars(Canvas canvas, int w, int h, int seed, float startY, float endY, int color) {
+        paint.setShader(null);
+        paint.setStyle(Paint.Style.FILL);
+        int count = 18 + Math.floorMod(mixSeed(seed + 20), 14);
+        float gap = w * 0.012f;
+        float barW = (w - gap * (count + 1)) / count;
+        float base = h * endY;
+        float maxHeight = h * Math.max(0.08f, endY - startY);
+        for (int i = 0; i < count; i++) {
+            float x = gap + i * (barW + gap);
+            float amp = randomRange(seed, 60 + i, 0.18f, 1f);
+            float top = base - maxHeight * amp;
+            paint.setColor(withAlpha(color, 42 + Math.floorMod(mixSeed(seed + i * 13), 90)));
+            canvas.drawRoundRect(x, top, x + barW, base, barW * 0.48f, barW * 0.48f, paint);
+        }
+    }
+
+    private void drawSparkleField(Canvas canvas, int w, int h, int seed, int count, int color) {
+        paint.setShader(null);
+        paint.setStyle(Paint.Style.FILL);
+        for (int i = 0; i < count; i++) {
+            float x = w * randomRange(seed, 80 + i * 2, -0.04f, 1.04f);
+            float y = h * randomRange(seed, 81 + i * 2, 0.04f, 0.92f);
+            float r = Math.max(1f, Math.min(w, h) * randomRange(seed, 120 + i, 0.002f, 0.008f));
+            paint.setColor(withAlpha(color, 22 + Math.floorMod(mixSeed(seed + i * 17), 86)));
+            canvas.drawCircle(x, y, r, paint);
+        }
+    }
+
+    private void drawStaffLines(Canvas canvas, int w, int h, int seed, float centerY, int lineColor, int noteColor) {
+        paint.setShader(null);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        float spacing = h * randomRange(seed, 140, 0.022f, 0.036f);
+        float y = h * centerY;
+        paint.setStrokeWidth(Math.max(1f, w / 540f));
+        paint.setColor(lineColor);
+        for (int i = -2; i <= 2; i++) canvas.drawLine(w * 0.06f, y + i * spacing, w * 0.94f, y + i * spacing + h * randomRange(seed, 150 + i, -0.018f, 0.018f), paint);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(noteColor);
+        int notes = 4 + Math.floorMod(mixSeed(seed + 160), 4);
+        for (int i = 0; i < notes; i++) {
+            float nx = w * randomRange(seed, 170 + i, 0.12f, 0.88f);
+            float ny = y + spacing * randomRange(seed, 180 + i, -2.2f, 2.2f);
+            float nr = Math.max(3f, w * randomRange(seed, 190 + i, 0.011f, 0.02f));
+            canvas.drawOval(nx - nr * 1.35f, ny - nr, nx + nr * 1.35f, ny + nr, paint);
+        }
+        paint.setStrokeCap(Paint.Cap.BUTT);
+    }
+
+    private void drawLightBeams(Canvas canvas, int w, int h, int seed, int color, int color2) {
+        for (int i = 0; i < 3; i++) {
+            float topX = w * randomRange(seed, 210 + i, 0.05f, 0.95f);
+            float bottomX = w * randomRange(seed, 220 + i, -0.18f, 1.18f);
+            float width = w * randomRange(seed, 230 + i, 0.18f, 0.34f);
+            path.reset();
+            path.moveTo(topX, h * randomRange(seed, 240 + i, -0.08f, 0.18f));
+            path.lineTo(bottomX - width, h * 1.08f);
+            path.lineTo(bottomX + width, h * 1.08f);
+            path.close();
+            paint.setShader(new LinearGradient(topX, 0, bottomX, h, i == 0 ? color : color2, Color.TRANSPARENT, Shader.TileMode.CLAMP));
+            canvas.drawPath(path, paint);
+            paint.setShader(null);
+        }
+    }
+
+    private void drawConstellation(Canvas canvas, int w, int h, int seed, int pointColor, int lineColor) {
+        int count = 7 + Math.floorMod(mixSeed(seed + 250), 5);
+        float[] xs = new float[count];
+        float[] ys = new float[count];
+        for (int i = 0; i < count; i++) {
+            xs[i] = w * randomRange(seed, 260 + i, 0.08f, 0.92f);
+            ys[i] = h * randomRange(seed, 280 + i, 0.1f, 0.72f);
+        }
+        paint.setShader(null);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(Math.max(1f, w / 620f));
+        paint.setColor(lineColor);
+        for (int i = 1; i < count; i++) canvas.drawLine(xs[i - 1], ys[i - 1], xs[i], ys[i], paint);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setColor(pointColor);
+        for (int i = 0; i < count; i++) canvas.drawCircle(xs[i], ys[i], Math.max(2f, w * randomRange(seed, 300 + i, 0.004f, 0.01f)), paint);
+    }
+
+    private void drawGrain(Canvas canvas, int w, int h, int seed, int count, int color) {
+        paint.setShader(null);
+        paint.setStyle(Paint.Style.FILL);
+        for (int i = 0; i < count; i++) {
+            paint.setColor(withAlpha(color, 14 + Math.floorMod(mixSeed(seed + i * 19), 32)));
+            canvas.drawCircle(w * randomRange(seed, 320 + i, 0f, 1f), h * randomRange(seed, 460 + i, 0f, 1f), Math.max(0.8f, w * randomRange(seed, 600 + i, 0.0012f, 0.003f)), paint);
+        }
+    }
+
     private void drawReadability(Canvas canvas, int w, int h) {
         paint.setShader(new LinearGradient(0, 0, 0, h, new int[]{0x5E000000, 0x1A000000, 0x8C000000}, new float[]{0f, 0.46f, 1f}, Shader.TileMode.CLAMP));
         canvas.drawRect(0, 0, w, h, paint);
@@ -425,6 +546,10 @@ public class AudioPlayerBackgroundDrawable extends Drawable {
         float sat = satMin + (((mixed >>> 9) & 0xFF) / 255f) * (0.92f - satMin);
         float val = valMin + (((mixed >>> 17) & 0xFF) / 255f) * (1f - valMin);
         return Color.HSVToColor(new float[]{hue, clamp(sat, 0f, 1f), clamp(val, 0f, 1f)});
+    }
+
+    private float randomRange(int seed, int slot, float min, float max) {
+        return min + ((mixSeed(seed + slot * 0x85EBCA6B) & 0xFFFF) / 65535f) * (max - min);
     }
 
     private int mixSeed(int value) {
